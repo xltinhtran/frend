@@ -61,7 +61,7 @@ export function createDefaultState() {
 // Create a new study set
 export function createSet(name) {
     const now = Date.now();
-    return {
+    const set = {
         uuid: generateUUID(),
         name: name.trim(),
         cards: [],
@@ -71,6 +71,11 @@ export function createSet(name) {
             updatedAt: now
         }
     };
+
+    // THÊM DÒNG NÀY VÀO ĐÂY
+    syncSetToBackend(set); 
+
+    return set;
 }
 
 // Create a new card with SM-2 defaults
@@ -196,6 +201,8 @@ export function addCardToSet(setId, card) {
 
     set.cards.push(card);
     set.meta.updatedAt = Date.now();
+    syncCardToBackend(setId, card);
+
     return card;
 }
 
@@ -296,13 +303,15 @@ export function updateKeyBindings(bindings) {
 
 // Get cards due for review (SM-2)
 export function getDueCards(setId) {
-    const set = state.allSets[setId];
+    const set = getSet(setId);
     if (!set) return [];
-
-    const now = Date.now();
-    return set.cards.filter(card => card.stats.dueAt <= now);
+    
+    // 🔥 ĐÃ PHÁ BỎ ĐIỀU KIỆN THỜI GIAN:
+    // Cứ thẻ nào không phải là "New" (Mastery > 0) là tóm cổ bắt ôn tập hết!
+    return set.cards.filter((c) => {
+        return getMasteryLevel(c.stats) > 0; 
+    });
 }
-
 // Get starred cards
 export function getStarredCards(setId) {
     const set = state.allSets[setId];
@@ -329,4 +338,42 @@ export function exportState() {
         analytics: state.analytics,
         settings: state.settings
     };
+}
+// ============================================================
+// API NGẦM ĐỂ KẾT NỐI VỚI ASP.NET CORE (THAY THẾ LOCALSTORAGE)
+// ============================================================
+
+const API_BASE_URL = "https://localhost:7077/api"; 
+const USER_ID = 1; // ID User test của ông
+
+// Hàm này sẽ tự động chạy ngầm để đẩy Bộ từ vựng lên SQL
+export async function syncSetToBackend(set) {
+    try {
+        await fetch(`${API_BASE_URL}/StudySets`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                title: set.name, 
+                description: "Đồng bộ từ Quizlet Clone",
+                isPublic: true,
+                userId: USER_ID
+            })
+        });
+    } catch (e) { console.error("Lỗi sync Set:", e); }
+}
+
+// Hàm này tự động chạy ngầm để đẩy Flashcard lên SQL
+export async function syncCardToBackend(setId, card) {
+    try {
+        await fetch(`${API_BASE_URL}/Flashcards`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                term: card.term, 
+                definition: card.definition,
+                isStarred: card.starred || false,
+                studySetId: 3 // Tạm thời hardcode ID bộ thẻ số 1 để test
+            })
+        });
+    } catch (e) { console.error("Lỗi sync Card:", e); }
 }

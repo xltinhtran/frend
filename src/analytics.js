@@ -1,3 +1,4 @@
+
 /**
  * analytics.js - Local Study Analytics
  * Tracks study patterns, streaks, and performance metrics

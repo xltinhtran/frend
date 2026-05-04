@@ -1,1103 +1,1707 @@
 /**
  * app.js - Main Application Entry Point
- * Ties together all modules and handles event delegation
+ * BẢN FULL HOÀN THIỆN: ĐÃ FIX LOAD SAO TỪ SQL + XÓA GIẬT LAG KHI ĐÁNH SAO + TÍCH HỢP ADMIN PANEL
  */
 
 import {
-    getState, setState, getAllSets, getSet, getActiveSet, setActiveSetId,
-    createSet, addSet, updateSet, deleteSet as deleteSetFromState,
-    createCard, addCardToSet, updateCard, deleteCard as deleteCardFromState,
-    toggleCardStar, getLearnSession, setLearnSession, clearLearnSession,
-    createLearnSession, getDueCards, getStarredCards, getTtsState, updateTtsState,
-    getSettings, updateKeyBindings, getFeatures, toggleFeature,
-    initializeState, exportState, generateUUID
-} from './state.js';
+  getState,
+  setState,
+  getAllSets,
+  getSet,
+  getActiveSet,
+  setActiveSetId,
+  createSet,
+  addSet,
+  updateSet,
+  deleteSet as deleteSetFromState,
+  createCard,
+  addCardToSet,
+  updateCard,
+  deleteCard as deleteCardFromState,
+  toggleCardStar,
+  getLearnSession,
+  setLearnSession,
+  clearLearnSession,
+  createLearnSession,
+  getDueCards,
+  getStarredCards,
+  getTtsState,
+  updateTtsState,
+  getSettings,
+  updateKeyBindings,
+  getFeatures,
+  toggleFeature,
+  initializeState,
+  exportState,
+  generateUUID,
+} from "./state.js";
 
 import {
-    saveState, loadState, saveLearnSession, loadLearnSession, clearLearnSessionStorage,
-    initAudioDB, exportSetToJSON, importSetFromJSON, downloadJSON, uploadJSON
-} from './storage.js';
+  saveState,
+  loadState,
+  saveLearnSession,
+  loadLearnSession,
+  clearLearnSessionStorage,
+  initAudioDB,
+  exportSetToJSON,
+  importSetFromJSON,
+  downloadJSON,
+  uploadJSON,
+} from "./storage.js";
 
 import {
-    showHome, showSetView, showLearnMode, hideAllModals,
-    showModal, hideModal, SECTIONS, MODALS, getCurrentSection, isModalOpen
-} from './navigation.js';
+  showHome,
+  showSetView,
+  showLearnMode,
+  hideAllModals,
+  showModal,
+  hideModal,
+  SECTIONS,
+  MODALS,
+  getCurrentSection,
+  isModalOpen,
+} from "./navigation.js";
 
 import {
-    renderHome, renderSetView, renderLearnMode, renderLearnQuestion,
-    renderAnswerFeedback, renderLearnFeedback, renderLearnSummary,
-    renderLearnCompletion, resetLearnUI, shuffleArray, escapeHtml
-} from './render.js';
+  renderHome,
+  renderSetView,
+  renderLearnMode,
+  renderLearnQuestion,
+  renderAnswerFeedback,
+  renderLearnFeedback,
+  renderLearnSummary,
+  renderLearnCompletion,
+  resetLearnUI,
+  shuffleArray,
+  escapeHtml,
+} from "./render.js";
 
-import { speak, stop as stopTTS, loadVoices, preCacheCards } from './tts.js';
+import { speak, stop as stopTTS, loadVoices, preCacheCards } from "./tts.js";
 
 import {
-    calculateSM2, GRADES, GRADE_LABELS, getDueCards as getDueCardsFromArray,
-    isCardDue, getMasteryLevel
-} from './spacedRep.js';
+  calculateSM2,
+  GRADES,
+  GRADE_LABELS,
+  getDueCards as getDueCardsFromArray,
+  isCardDue,
+  getMasteryLevel,
+} from "./spacedRep.js";
 
-import { recordCardStudy, recordSessionTime, cleanupOldData } from './analytics.js';
+import {
+  recordCardStudy,
+  recordSessionTime,
+  cleanupOldData,
+} from "./analytics.js";
 
 // ============================================================
 // APPLICATION STATE
 // ============================================================
-
-let flashcardState = {
-    currentIndex: 0,
-    cardOrder: [],
-    isFlipped: false
-};
-
-let learnState = {
-    sessionStartTime: null,
-    batchHistory: []
-};
+let flashcardState = { currentIndex: 0, cardOrder: [], isFlipped: false };
+let learnState = { sessionStartTime: null, batchHistory: [] };
 
 // ============================================================
-// INITIALIZATION
+// ĐỒNG BỘ DỮ LIỆU TỪ SQL SERVER
 // ============================================================
+async function fetchStudySetsFromSQL() {
+  try {
+    const userData = JSON.parse(localStorage.getItem("quizlet_user"));
+    const userId = userData ? userData.id : 0;
 
-document.addEventListener('DOMContentLoaded', async () => {
-    console.log('StudySet initializing...');
+    console.log("Đang gọi API lấy dữ liệu từ SQL...");
 
-    // Initialize audio cache
-    await initAudioDB();
+    const response = await fetch(
+      `https://localhost:7077/api/StudySets?userId=${userId}`,
+      {
+        cache: "no-store",
+      },
+    );
 
-    // Load saved state
-    loadState();
+    if (!response.ok) throw new Error("Không gọi được API!");
+    const sqlData = await response.json();
 
-    // Load saved learn session
-    const savedSession = loadLearnSession();
-    if (savedSession) {
-        setLearnSession(savedSession);
-    }
+    const currentState = getState();
+    currentState.sets = {};
+    setState(currentState);
 
-    // Load TTS voices
-    loadVoices();
+    sqlData.forEach((sqlSet) => {
+      const setObj = {
+        uuid: sqlSet.id.toString(),
+        name: sqlSet.title,
+        description: sqlSet.description || "",
+        createdAt: sqlSet.createdAt || Date.now(),
+        updatedAt: Date.now(),
+        cards: [],
+      };
 
-    // Clean up old analytics
-    cleanupOldData();
+      if (sqlSet.flashcards && sqlSet.flashcards.length > 0) {
+        sqlSet.flashcards.forEach((sqlCard) => {
+          setObj.cards.push({
+            uuid: sqlCard.id.toString(),
+            id: sqlCard.id,
+            term: sqlCard.term,
+            definition: sqlCard.definition,
+            starred: sqlCard.isStarred || sqlCard.IsStarred || false,
+            stats: {
+              repetitions: sqlCard.repetitions,
+              interval: sqlCard.interval,
+              easeFactor: sqlCard.easeFactor,
+              dueAt: sqlCard.nextReviewDate
+                ? new Date(sqlCard.nextReviewDate).getTime()
+                : null,
+            },
+          });
+        });
+      }
+      addSet(setObj);
+    });
 
-    // Set up event listeners
-    setupEventListeners();
+    saveState();
+  } catch (error) {
+    console.error("Lỗi đồng bộ SQL:", error);
+  }
+}
 
-    // Show home screen
+// ============================================================
+// INITIALIZATION (KHỞI ĐỘNG)
+// ============================================================
+document.addEventListener("DOMContentLoaded", async () => {
+  console.log("StudySet đang khởi tạo...");
+  await initAudioDB();
+  loadState();
+
+  const savedSession = loadLearnSession();
+  if (savedSession) setLearnSession(savedSession);
+
+  loadVoices();
+  cleanupOldData();
+  setupEventListeners();
+
+  const userData = localStorage.getItem("quizlet_user");
+  if (!userData) {
+    const loginModal = document.getElementById("loginModal");
+    if (loginModal) loginModal.classList.remove("hidden");
+  } else {
+    checkPermissions();
+    await fetchStudySetsFromSQL();
     navigateToHome();
-
-    console.log('StudySet ready!');
+  }
+  console.log("StudySet ready!");
 });
 
 // ============================================================
-// NAVIGATION HANDLERS
+// ADMIN PANEL LOGIC (MỚI THÊM)
 // ============================================================
+window.navigateToAdminPanel = async function (e) {
+  // Chặn trình duyệt load lại linh tinh
+  if (e) e.preventDefault();
+  console.log("🚀 Đã bấm nút Admin Panel!");
 
-function navigateToHome() {
-    showHome(() => {
-        renderHome({
-            onCreateSet: () => showModal('createSetModal'),
-            onSelectSet: navigateToSetView,
-            onResumeSession: handleResumeSession,
-            onStudy5Min: handleStudy5Min,
-            onReviewDue: handleReviewAllDue,
-            onRandomSet: handleRandomSet
-        });
-    });
-}
+  // 1. Ép cái URL trên thanh địa chỉ thành #admin để cắt đuôi thằng Home
+  window.location.hash = "admin";
 
-function navigateToSetView(setId) {
-    setActiveSetId(setId);
-    saveState();
+  // 2. Ẩn TOÀN BỘ các view khác đi
+  document.getElementById("homeView")?.classList.add("hidden");
+  document.getElementById("setView")?.classList.add("hidden");
+  document.getElementById("learnView")?.classList.add("hidden");
 
-    // Initialize flashcard state
-    const set = getSet(setId);
-    if (set && set.cards.length > 0) {
-        flashcardState.cardOrder = set.cards.map((_, i) => i);
-        flashcardState.currentIndex = 0;
-        flashcardState.isFlipped = false;
-    }
-
-    showSetView(setId, () => {
-        renderSetView(setId, {
-            currentIndex: flashcardState.currentIndex,
-            cardOrder: flashcardState.cardOrder,
-            onToggleStar: handleToggleStar,
-            onSpeak: handleSpeak,
-            onDeleteCard: handleDeleteCard,
-            onUpdateCard: handleUpdateCard
-        });
-    });
-
-    // Pre-cache starred cards and next cards
-    if (set) {
-        const starredCards = set.cards.filter(c => c.starred);
-        const nextCards = set.cards.slice(0, 5);
-        preCacheCards([...starredCards, ...nextCards]);
-    }
-}
-
-function navigateToLearnMode(setId, options = {}) {
-    const { resume = false, mode = 'all' } = options;
-
-    setActiveSetId(setId);
-    const set = getSet(setId);
-    if (!set) return;
-
-    let session;
-
-    // Always check for existing session for this set first
-    const savedSession = loadLearnSession();
-    if (savedSession && savedSession.setId === setId && savedSession.unseenIds.length > 0) {
-        // Resume existing session
-        session = savedSession;
-    } else if (resume) {
-        session = getLearnSession();
-        if (!session || session.setId !== setId) {
-            session = initializeNewSession(set, mode);
-        }
-    } else {
-        session = initializeNewSession(set, mode);
-    }
-
-    if (!session) return;
-
-    setLearnSession(session);
-    saveLearnSession(session); // Immediate save
-    learnState.sessionStartTime = Date.now();
-    learnState.batchHistory = [];
-
-    showLearnMode(setId, options, () => {
-        resetLearnUI();
-        nextQuestion();
-    });
-}
-
-function initializeNewSession(set, mode) {
-    let cards;
-
-    if (mode === 'starred') {
-        cards = set.cards.filter(c => c.starred);
-    } else if (mode === 'due') {
-        cards = set.cards.filter(c => isCardDue(c));
-    } else {
-        cards = set.cards;
-    }
-
-    if (cards.length < 2) {
-        alert(`Need at least 2 cards. Found ${cards.length}.`);
-        return null;
-    }
-
-    const shuffled = shuffleArray(cards);
-
-    return createLearnSession(
-        set.uuid,
-        shuffled.map(c => c.uuid),
-        mode
+  // 3. Hiện màn hình Admin
+  const adminView = document.getElementById("adminView");
+  if (adminView) {
+    adminView.classList.remove("hidden");
+    console.log("✅ Đã bật giao diện Admin thành công!");
+  } else {
+    console.error(
+      "❌ CẢNH BÁO: Không tìm thấy id='adminView' trong file html!",
     );
+  }
+
+  // 4. Gọi hàm load danh sách User
+  await loadAdminUsers();
+};
+
+async function loadAdminUsers() {
+  try {
+    const res = await fetch("https://localhost:7077/api/Users");
+    const users = await res.json();
+
+    const tbody = document.getElementById("adminUserTableBody");
+    if (!tbody) return;
+
+    tbody.innerHTML = users
+      .map(
+        (u) => `
+          <tr class="hover:bg-slate-50 transition-colors border-b border-slate-100">
+              <td class="px-6 py-4 text-slate-600">${u.id}</td>
+              <td class="px-6 py-4 font-medium text-slate-800">${u.username}</td>
+              <td class="px-6 py-4 text-slate-600">${u.email || "N/A"}</td>
+              <td class="px-6 py-4">
+                  <span class="px-2 py-1 rounded text-xs font-bold ${u.role === "Admin" ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"}">${u.role}</span>
+              </td>
+              <td class="px-6 py-4 text-right">
+                  ${
+                    u.role !== "Admin"
+                      ? `<button onclick="window.deleteUser(${u.id})" class="text-red-500 hover:text-red-700 font-semibold text-sm transition-colors">Delete User</button>`
+                      : `<span class="text-slate-400 text-sm">Cannot be deleted</span>`
+                  }
+              </td>
+          </tr>
+      `,
+      )
+      .join("");
+  } catch (err) {
+    console.error("Lỗi lấy danh sách user:", err);
+  }
+}
+
+// Hàm Xóa User (Đẩy ra window để nút click trong HTML gọi được)
+window.deleteUser = async function (id) {
+  if (
+    !confirm(
+      "Ông có chắc muốn xóa vĩnh viễn thằng User này không? Cả tiến độ học của nó cũng bay luôn đó!",
+    )
+  )
+    return;
+
+  try {
+    const res = await fetch(`https://localhost:7077/api/Users/${id}`, {
+      method: "DELETE",
+    });
+    if (res.ok) {
+      alert("Đã tiễn nó ra đảo thành công!");
+      loadAdminUsers(); // Load lại bảng
+    } else {
+      alert("Xóa thất bại!");
+    }
+  } catch (err) {
+    console.error("Lỗi xóa user:", err);
+  }
+};
+
+// ============================================================
+// NAVIGATION & PERMISSION HANDLERS
+// ============================================================
+function checkPermissions() {
+  const userData = JSON.parse(localStorage.getItem("quizlet_user"));
+  if (!userData) return;
+
+  const isAdmin = userData.role === "Admin";
+
+  const createSetBtn = document.getElementById("homeCreateSetBtn");
+  const addCardBtn = document.getElementById("setViewAddCardBtn");
+  const deleteSetBtn = document.getElementById("setViewDeleteBtn");
+  const bulkImportBtn = document.getElementById("bulkImportBtn");
+  const adminPanelBtn = document.getElementById("navAdminPanelBtn"); // Nút admin
+
+  if (!isAdmin) {
+    if (createSetBtn) createSetBtn.classList.add("hidden");
+    if (addCardBtn) addCardBtn.classList.add("hidden");
+    if (deleteSetBtn) deleteSetBtn.classList.add("hidden");
+    if (bulkImportBtn) bulkImportBtn.classList.add("hidden");
+    if (adminPanelBtn) adminPanelBtn.classList.add("hidden"); // Ẩn nút Admin
+  } else {
+    if (createSetBtn) createSetBtn.classList.remove("hidden");
+    if (addCardBtn) addCardBtn.classList.remove("hidden");
+    if (deleteSetBtn) deleteSetBtn.classList.remove("hidden");
+    if (bulkImportBtn) bulkImportBtn.classList.remove("hidden");
+    if (adminPanelBtn) adminPanelBtn.classList.remove("hidden"); // Hiện nút Admin
+  }
+}
+
+async function navigateToHome() {
+  // Ẩn trang Admin nếu đang mở
+  document.getElementById("adminView")?.classList.add("hidden");
+
+  const { updateDashboardProgress } = await import("./render.js");
+
+  showHome(() => {
+    renderHome({
+      onCreateSet: () => showModal("createSetModal"),
+      onSelectSet: navigateToSetView,
+      onResumeSession: handleResumeSession,
+      onStudy5Min: handleStudy5Min,
+      onReviewDue: handleReviewAllDue,
+      onRandomSet: handleRandomSet,
+      onResetProgress: handleResetProgress,
+    });
+
+    updateDashboardProgress();
+    setupLevelFilter();
+  });
+}
+function navigateToSetView(setId) {
+  // Ẩn trang Admin nếu đang mở
+  document.getElementById("adminView")?.classList.add("hidden");
+
+  setActiveSetId(setId);
+  saveState();
+  const set = getSet(setId);
+  if (set && set.cards.length > 0) {
+    flashcardState.cardOrder = set.cards.map((_, i) => i);
+    flashcardState.currentIndex = 0;
+    flashcardState.isFlipped = false;
+  }
+
+  showSetView(setId, () => {
+    // 1. Hàm này vẽ lại toàn bộ giao diện HTML mới tinh
+    renderSetView(setId, {
+      currentIndex: flashcardState.currentIndex,
+      cardOrder: flashcardState.cardOrder,
+      onToggleStar: handleToggleStar,
+      onSpeak: handleSpeak,
+      onDeleteCard: handleDeleteCard,
+      onUpdateCard: handleUpdateCard,
+    });
+
+    // 🔥 2. LÍNH ĐÁNH THUÊ: Đi dọn dẹp ngay sau khi HTML vừa được vẽ ra
+    const userData = JSON.parse(localStorage.getItem("quizlet_user"));
+    if (userData && userData.role && userData.role.toLowerCase() === "admin") {
+      // Tắt cái nút "Starred ( 3 )" màu vàng bự chà bá
+      const starBtn = document.getElementById("setViewStarredBtn");
+      if (starBtn) starBtn.style.display = "none";
+
+      // Truy cùng diệt tận mấy nút ngôi sao nhỏ xíu trên từng thẻ
+      const allButtons = document.querySelectorAll("button");
+      allButtons.forEach((btn) => {
+        // Quét thấy nút nào có icon "star" hoặc chữ "Starred" là ép tàng hình luôn!
+        if (
+          btn.innerHTML.includes("star") ||
+          btn.innerText.includes("Starred")
+        ) {
+          btn.style.display = "none";
+        }
+      });
+    }
+  });
+
+  if (set) {
+    const starredCards = set.cards.filter((c) => c.starred);
+    const nextCards = set.cards.slice(0, 5);
+    preCacheCards([...starredCards, ...nextCards]);
+  }
+  checkPermissions();
+}
+function navigateToLearnMode(setId, options = {}) {
+  const { resume = false, mode = "all" } = options;
+  setActiveSetId(setId);
+  const set = getSet(setId);
+  if (!set) return;
+
+  let session;
+  const savedSession = loadLearnSession();
+
+  // 🔥 FIX BỊ KẸT CHẾ ĐỘ:
+  // Chỉ khôi phục bài học cũ nếu nó CÙNG MODE với nút ông vừa bấm!
+  if (
+    savedSession &&
+    savedSession.setId === setId &&
+    savedSession.unseenIds.length > 0 &&
+    savedSession.mode === mode
+  ) {
+    session = savedSession;
+  } else {
+    // Nếu bấm nút Due mà trong máy đang lưu bài của All -> Dẹp, tạo phòng Due mới tinh!
+    session = initializeNewSession(set, mode);
+  }
+
+  if (!session) return;
+
+  setLearnSession(session);
+  saveLearnSession(session);
+  learnState.sessionStartTime = Date.now();
+  learnState.batchHistory = [];
+
+  showLearnMode(setId, options, () => {
+    resetLearnUI();
+    nextQuestion();
+  });
+}
+function initializeNewSession(set, mode) {
+  let cards;
+  if (mode === "starred") {
+    cards = set.cards.filter((c) => c.starred);
+  } else if (mode === "due") {
+    // 🔥 LOGIC CHUẨN: Chỉ lấy những từ ĐÃ HỌC (repetitions > 0). LOẠI SẠCH TỪ "NEW"
+    cards = set.cards.filter(
+      (c) => c.stats && (c.stats.repetitions > 0 || c.stats.Repetitions > 0),
+    );
+  } else {
+    cards = set.cards;
+  }
+
+  // Tui nới lỏng luôn: 1 thẻ đến hạn cũng cho vào phòng ôn tập, không bắt ép 2 thẻ nữa!
+  if (cards.length < 1) {
+    alert(`Không có thẻ nào phù hợp để học!`);
+    return null;
+  }
+
+  const shuffled = shuffleArray(cards);
+  return createLearnSession(
+    set.uuid,
+    shuffled.map((c) => c.uuid),
+    mode,
+  );
 }
 
 // ============================================================
 // LEARN MODE HANDLERS
 // ============================================================
-
 function nextQuestion() {
-    const session = getLearnSession();
-    const set = getActiveSet();
-    if (!session || !set) return;
+  const session = getLearnSession();
+  const set = getActiveSet();
+  if (!session || !set) return;
 
-    // Check for batch summary
-    if (session.questionsAnswered > 0 &&
-        session.questionsAnswered % 10 === 0 &&
-        learnState.batchHistory.length > 0) {
-        renderLearnSummary(learnState.batchHistory);
-        return;
-    }
+  if (
+    session.questionsAnswered > 0 &&
+    session.questionsAnswered % 10 === 0 &&
+    learnState.batchHistory.length > 0
+  ) {
+    renderLearnSummary(learnState.batchHistory);
+    return;
+  }
+  if (session.unseenIds.length === 0) {
+    handleLearnComplete();
+    return;
+  }
 
-    // Check for completion
-    if (session.unseenIds.length === 0) {
-        handleLearnComplete();
-        return;
-    }
+  session.currentQuestionId = session.unseenIds[0];
+  setLearnSession(session);
+  saveLearnSession(session);
+  resetLearnUI();
+  renderLearnMode(session, set, {
+    onGrade: handleGrade,
+    onAnswer: handleMultipleChoiceAnswer,
+    onWordClick: handleWordClick,
+  });
 
-    // Get next question
-    session.currentQuestionId = session.unseenIds[0];
-    setLearnSession(session);
-    saveLearnSession(session);
-
-    resetLearnUI();
-    renderLearnMode(session, set, {
-        onGrade: handleGrade,
-        onAnswer: handleMultipleChoiceAnswer,
-        onWordClick: handleWordClick
-    });
-
-    // Auto-read if enabled
-    const ttsState = getTtsState();
-    if (ttsState.autoRead) {
-        const card = set.cards.find(c => c.uuid === session.currentQuestionId);
-        if (card) speak(card.definition);
-    }
+  const ttsState = getTtsState();
+  if (ttsState.autoRead) {
+    const card = set.cards.find((c) => c.uuid === session.currentQuestionId);
+    if (card) speak(card.definition);
+  }
 }
+async function handleGrade(grade) {
+  const session = getLearnSession();
+  const set = getActiveSet();
+  const userData =
+    JSON.parse(localStorage.getItem("quizlet_user")) ||
+    JSON.parse(localStorage.getItem("user"));
+  const userId = userData ? userData.id || userData.Id : 1;
 
-function handleGrade(grade) {
-    const session = getLearnSession();
-    const set = getActiveSet();
-    if (!session || !set) return;
+  if (!session || !set) return;
+  const card = set.cards.find((c) => c.uuid === session.currentQuestionId);
+  if (!card) return;
 
-    const card = set.cards.find(c => c.uuid === session.currentQuestionId);
-    if (!card) return;
+  const newStats = calculateSM2(card.stats, grade);
+  updateCard(set.uuid, card.uuid, { stats: newStats });
+  saveState();
 
-    // Calculate new stats using SM-2
-    const newStats = calculateSM2(card.stats, grade);
-    updateCard(set.uuid, card.uuid, { stats: newStats });
+  const isCorrect = grade >= GRADES.GOOD; // Cứ tính là đúng nếu điểm cao
+  const realCardId = card.id || parseInt(card.uuid);
+
+  try {
+    fetch("https://localhost:7077/api/StudyProgresses/review", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, flashcardId: realCardId, grade }),
+    });
+  } catch (err) {}
+
+  // 🔥 LOGIC CHUẨN: TRẢ LỜI ĐÚNG -> TẮT SAO ĐI
+  if (isCorrect && session.mode === "starred" && card.starred) {
+    card.starred = false;
     saveState();
+    try {
+      fetch(
+        `https://localhost:7077/api/Flashcards/toggle-star/${realCardId}/${userId}`,
+        { method: "POST" },
+      );
+      console.log(`🌟 Từ [${card.term}] đã thuộc! Đã tháo sao.`);
+    } catch (err) {}
+  }
 
-    // Record analytics
-    const isCorrect = grade >= GRADES.GOOD;
-    recordCardStudy(isCorrect);
+  recordCardStudy(isCorrect);
+  session.questionsAnswered++;
+  learnState.batchHistory.push({
+    card: { term: card.term, definition: card.definition },
+    correct: isCorrect,
+    grade,
+  });
 
-    // Update session
-    session.questionsAnswered++;
-
-    // Add to batch history
-    learnState.batchHistory.push({
-        card: { term: card.term, definition: card.definition },
-        correct: isCorrect,
-        grade: grade
-    });
-
-    if (grade >= GRADES.GOOD) {
-        // Mastered - remove from unseen
-        session.unseenIds.shift();
-        session.masteredIds.push(card.uuid);
-        session.correctCount++;
-    } else {
-        // Failed - re-insert for later review
-        session.unseenIds.shift();
-        const insertIndex = Math.min(session.unseenIds.length, Math.floor(Math.random() * 3) + 2);
-        session.unseenIds.splice(insertIndex, 0, card.uuid);
-    }
-
-    setLearnSession(session);
-    saveLearnSession(session);
-
-    // Show brief feedback then next question
-    if (grade >= GRADES.GOOD) {
-        // Quick success animation
-        const progressBar = document.getElementById('progressBar');
-        if (progressBar) {
-            progressBar.classList.add('progress-animating');
-            setTimeout(() => progressBar.classList.remove('progress-animating'), 1000);
-        }
-        setTimeout(nextQuestion, 800);
-    } else {
-        renderLearnFeedback(false, card.term);
-    }
+  if (isCorrect) {
+    session.unseenIds.shift();
+    session.masteredIds.push(card.uuid);
+    session.correctCount++;
+    setTimeout(nextQuestion, 800);
+  } else {
+    session.unseenIds.shift();
+    const insertIndex = Math.min(
+      session.unseenIds.length,
+      Math.floor(Math.random() * 3) + 2,
+    );
+    session.unseenIds.splice(insertIndex, 0, card.uuid);
+    renderLearnFeedback(false, card.term);
+  }
+  setLearnSession(session);
+  saveLearnSession(session);
 }
-
 function handleMultipleChoiceAnswer(isCorrect, selectedBtn, correctId) {
-    const session = getLearnSession();
-    const set = getActiveSet();
-    if (!session || !set) return;
+  const session = getLearnSession();
+  if (!session) return;
 
-    const card = set.cards.find(c => c.uuid === session.currentQuestionId);
-    if (!card) return;
-
-    // Show feedback
+  if (typeof renderAnswerFeedback === "function") {
     renderAnswerFeedback(selectedBtn, correctId, isCorrect);
+  }
 
-    // Record analytics
-    recordCardStudy(isCorrect);
+  const userData =
+    JSON.parse(localStorage.getItem("quizlet_user")) ||
+    JSON.parse(localStorage.getItem("user"));
+  const userId = userData ? userData.id || userData.Id : 1;
+  const gradeValue = isCorrect ? 4 : 1;
 
-    // Update mastery
-    if (isCorrect) {
-        card.masteryLevel = (card.masteryLevel || 0) + 1;
-    } else {
-        card.masteryLevel = 0;
-    }
-    updateCard(set.uuid, card.uuid, { masteryLevel: card.masteryLevel });
+  const set = getActiveSet();
+  const card = set?.cards.find(
+    (c) =>
+      c.uuid == session.currentQuestionId || c.id == session.currentQuestionId,
+  );
+  const realCardId = card ? card.id : parseInt(session.currentQuestionId);
+
+  // Gửi điểm
+  fetch("https://localhost:7077/api/StudyProgresses/review", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      userId,
+      flashcardId: realCardId,
+      grade: gradeValue,
+    }),
+  }).catch((err) => console.error(err));
+
+  // 🔥 LOGIC CHUẨN: TRẢ LỜI ĐÚNG -> TẮT SAO ĐI
+  if (isCorrect && session.mode === "starred" && card && card.starred) {
+    card.starred = false; // Ép tắt sao ở trình duyệt
     saveState();
+    try {
+      fetch(
+        `https://localhost:7077/api/Flashcards/toggle-star/${realCardId}/${userId}`,
+        { method: "POST" },
+      );
+      console.log(`🌟 Từ [${card.term}] đã thuộc! Đã tháo sao.`);
+    } catch (err) {}
+  }
 
-    // Update session
-    session.questionsAnswered++;
-    learnState.batchHistory.push({
-        card: { term: card.term, definition: card.definition },
-        correct: isCorrect
-    });
+  // Chuyển câu
+  session.questionsAnswered++;
+  if (isCorrect) {
+    session.correctCount++;
+    session.unseenIds.shift();
+    session.masteredIds.push(session.currentQuestionId);
+  } else {
+    const wrongCardId = session.unseenIds.shift();
+    session.unseenIds.push(wrongCardId);
+  }
 
-    if (isCorrect) {
-        session.unseenIds.shift();
-        session.masteredIds.push(card.uuid);
-        session.correctCount++;
-    } else {
-        session.unseenIds.shift();
-        const insertIndex = Math.min(session.unseenIds.length, Math.floor(Math.random() * 3) + 2);
-        session.unseenIds.splice(insertIndex, 0, card.uuid);
+  setLearnSession(session);
+  saveLearnSession(session);
+
+  setTimeout(() => {
+    try {
+      if (isCorrect) nextQuestion();
+      else {
+        if (typeof renderLearnFeedback === "function" && card)
+          renderLearnFeedback(false, card.term);
+        else nextQuestion();
+      }
+    } catch (error) {
+      nextQuestion();
     }
-
-    setLearnSession(session);
-    saveLearnSession(session);
-
-    setTimeout(() => {
-        if (isCorrect) {
-            nextQuestion();
-        } else {
-            renderLearnFeedback(false, card.term);
-        }
-    }, 1000);
+  }, 800);
 }
 
 function handleLearnComplete() {
-    const session = getLearnSession();
+  const session = getLearnSession();
 
-    // Record session time
-    if (learnState.sessionStartTime) {
-        const minutes = Math.round((Date.now() - learnState.sessionStartTime) / 60000);
-        recordSessionTime(minutes);
+  if (learnState.sessionStartTime) {
+    const minutes = Math.round(
+      (Date.now() - learnState.sessionStartTime) / 60000,
+    );
+    try {
+      recordSessionTime(minutes);
+    } catch (e) {}
+  }
+
+  clearLearnSessionStorage();
+  clearLearnSession();
+  renderLearnCompletion();
+
+  setTimeout(() => {
+    const restartBtn =
+      document.querySelector(".congrats-modal button:first-child") ||
+      document.querySelector('button[onclick*="restart"]');
+
+    if (restartBtn) {
+      restartBtn.onclick = (e) => {
+        e.preventDefault();
+        const activeSetId = getState().activeSetId;
+        navigateToLearnMode(activeSetId);
+      };
     }
 
-    clearLearnSessionStorage();
-    clearLearnSession();
-    renderLearnCompletion();
+    const backBtn =
+      document.querySelector(".congrats-modal button:last-child") ||
+      document.querySelector('button[onclick*="back"]');
+
+    if (backBtn) {
+      backBtn.onclick = (e) => {
+        e.preventDefault();
+        const activeSetId = getState().activeSetId;
+        window.location.hash = `#set/${activeSetId}`;
+      };
+    }
+  }, 100);
 }
 
 function handleResumeSession(savedSession) {
-    navigateToLearnMode(savedSession.setId, { resume: true, mode: savedSession.mode });
+  navigateToLearnMode(savedSession.setId, {
+    resume: true,
+    mode: savedSession.mode,
+  });
 }
 
 function handleContinueLearning() {
-    learnState.batchHistory = [];
-    resetLearnUI();
-    nextQuestion();
-}
-
-function handleExitLearn() {
-    const session = getLearnSession();
-
-    // Record session time
-    if (learnState.sessionStartTime) {
-        const minutes = Math.round((Date.now() - learnState.sessionStartTime) / 60000);
-        if (minutes > 0) recordSessionTime(minutes);
-    }
-
-    // Save session if not complete
-    if (session && session.unseenIds.length > 0) {
-        saveLearnSession(session);
-    } else {
-        clearLearnSessionStorage();
-        clearLearnSession();
-    }
-
-    stopTTS();
-    navigateToSetView(getState().activeSetId);
+  learnState.batchHistory = [];
+  resetLearnUI();
+  nextQuestion();
 }
 
 // ============================================================
 // QUICK ACTION HANDLERS
 // ============================================================
-
 function handleStudy5Min() {
-    const allSets = getAllSets();
-    const setIds = Object.keys(allSets);
-    if (setIds.length === 0) return;
+  const allSets = getAllSets();
+  const setIds = Object.keys(allSets);
+  if (setIds.length === 0) return alert("Chưa có bộ thẻ nào để học ông ơi!");
 
-    // Find set with most due cards
-    let bestSetId = setIds[0];
-    let maxDue = 0;
+  let bestSetId = setIds[0];
+  let maxDue = 0;
 
-    setIds.forEach(id => {
-        const due = getDueCards(id).length;
-        if (due > maxDue) {
-            maxDue = due;
-            bestSetId = id;
-        }
-    });
-
-    navigateToLearnMode(bestSetId, { mode: maxDue > 0 ? 'due' : 'all' });
+  setIds.forEach((id) => {
+    const due = getDueCards(id).length;
+    if (due > maxDue) {
+      maxDue = due;
+      bestSetId = id;
+    }
+  });
+  navigateToLearnMode(bestSetId, { mode: maxDue > 0 ? "due" : "all" });
 }
 
 function handleReviewAllDue() {
-    const allSets = getAllSets();
-    const setIds = Object.keys(allSets);
+  const allSets = getAllSets();
+  const setIds = Object.keys(allSets);
 
-    // Find first set with due cards
-    for (const id of setIds) {
-        const due = getDueCards(id).length;
-        if (due >= 2) {
-            navigateToLearnMode(id, { mode: 'due' });
-            return;
-        }
+  for (const id of setIds) {
+    const due = getDueCards(id).length;
+    if (due >= 1) {
+      navigateToLearnMode(id, { mode: "due" });
+      return;
     }
+  }
+  alert("Chúc mừng! Hiện tại không có thẻ nào đến hạn ôn tập.");
+}
 
-    alert('No cards are due for review!');
+function setupLevelFilter() {
+  const studySelect = document.getElementById("quickActionStudy");
+  if (!studySelect) return;
+
+  studySelect.addEventListener("change", (e) => {
+    const level = e.target.value;
+    const allCards = document.querySelectorAll(".set-card");
+
+    allCards.forEach((card) => {
+      const title = card.querySelector("h3").innerText.toUpperCase();
+      let shouldShow = false;
+
+      if (level === "all") {
+        shouldShow = true;
+      } else if (
+        level === "easy" &&
+        (title.includes("A1") || title.includes("A2"))
+      ) {
+        shouldShow = true;
+      } else if (
+        level === "medium" &&
+        (title.includes("B1") || title.includes("B2"))
+      ) {
+        shouldShow = true;
+      } else if (
+        level === "hard" &&
+        (title.includes("C1") || title.includes("C2"))
+      ) {
+        shouldShow = true;
+      }
+
+      card.style.display = shouldShow ? "" : "none";
+    });
+  });
 }
 
 function handleRandomSet() {
-    const allSets = getAllSets();
-    const setIds = Object.keys(allSets).filter(id => allSets[id].cards.length >= 2);
+  const allSets = getAllSets();
+  const setIds = Object.keys(allSets).filter(
+    (id) => allSets[id].cards.length >= 2,
+  );
 
-    if (setIds.length === 0) {
-        alert('No sets with enough cards to study!');
-        return;
-    }
+  if (setIds.length === 0)
+    return alert("Kiếm bộ nào có từ 2 thẻ trở lên mới chơi random được!");
 
-    const randomId = setIds[Math.floor(Math.random() * setIds.length)];
-    navigateToLearnMode(randomId, { mode: 'all' });
+  const randomId = setIds[Math.floor(Math.random() * setIds.length)];
+  navigateToLearnMode(randomId, { mode: "all" });
 }
 
 // ============================================================
-// CARD HANDLERS
+// CARD & SET HANDLERS
 // ============================================================
+async function handleResetProgress(setId) {
+  const userData = JSON.parse(localStorage.getItem("quizlet_user"));
+  if (!userData) return alert("Phải đăng nhập mới reset được ông ơi!");
 
-function handleToggleStar(cardId) {
-    const setId = getState().activeSetId;
-    toggleCardStar(setId, cardId);
-    saveState();
+  if (
+    !confirm(
+      "Ông có chắc muốn xóa sạch tiến độ bộ này để học lại từ đầu không?",
+    )
+  )
+    return;
 
-    // Re-render term list
-    renderSetView(setId, {
-        currentIndex: flashcardState.currentIndex,
-        cardOrder: flashcardState.cardOrder,
-        onToggleStar: handleToggleStar,
-        onSpeak: handleSpeak,
-        onDeleteCard: handleDeleteCard,
-        onUpdateCard: handleUpdateCard
-    });
-}
+  try {
+    const response = await fetch(
+      `https://localhost:7077/api/StudyProgresses/reset/${setId}/${userData.id}`,
+      {
+        method: "DELETE",
+      },
+    );
 
-function handleDeleteCard(cardId) {
-    const setId = getState().activeSetId;
-    deleteCardFromState(setId, cardId);
-    saveState();
-
-    // Re-initialize flashcard order
-    const set = getSet(setId);
-    if (set && set.cards.length > 0) {
-        flashcardState.cardOrder = set.cards.map((_, i) => i);
-        flashcardState.currentIndex = Math.min(flashcardState.currentIndex, set.cards.length - 1);
-    } else {
-        flashcardState.cardOrder = [];
-        flashcardState.currentIndex = 0;
+    if (response.ok) {
+      alert("Đã xóa sạch bộ nhớ, tiến độ về 0%!");
+      const { updateDashboardProgress } = await import("./render.js");
+      updateDashboardProgress();
+      navigateToHome();
     }
-
-    navigateToSetView(setId);
+  } catch (err) {
+    console.error("Lỗi reset:", err);
+  }
 }
 
-function handleUpdateCard(cardId, field, value) {
-    const setId = getState().activeSetId;
-    if (field === 'term') {
-        updateCard(setId, cardId, { term: value });
-    } else if (field === 'definition') {
-        updateCard(setId, cardId, { definition: value });
-    }
-    saveState();
+async function handleToggleStar(cardId) {
+  const currentState = getState();
+  const setId = currentState.activeSetId;
+  const set = currentState.sets[setId];
+  if (!set) return;
+
+  // Trả lại sự trong sáng: Không lật ngược biến nữa vì File giao diện nó làm rồi
+  saveState();
+
+  const userData =
+    JSON.parse(localStorage.getItem("quizlet_user")) ||
+    JSON.parse(localStorage.getItem("user"));
+  const userId = userData ? userData.id || userData.Id : 1;
+
+  // Bắn lên C# để lưu
+  try {
+    fetch(
+      `https://localhost:7077/api/Flashcards/toggle-star/${cardId}/${userId}`,
+      { method: "POST" },
+    );
+  } catch (err) {
+    console.error("Lỗi đồng bộ sao", err);
+  }
 }
 
+function handleUpdateCard(cardId, field, value) {}
 function handleSpeak(text) {
-    speak(text);
+  speak(text);
+}
+function handleCreateSet(name) {
+  return null;
+}
+
+async function handleDeleteCard(cardId) {
+  if (!confirm("Ông có chắc muốn xóa thẻ này vĩnh viễn không?")) return;
+
+  try {
+    const response = await fetch(
+      `https://localhost:7077/api/Flashcards/${cardId}`,
+      {
+        method: "DELETE",
+      },
+    );
+
+    if (!response.ok) {
+      alert("Lỗi: Backend từ chối xóa thẻ này!");
+      return;
+    }
+
+    const currentState = getState();
+    const activeSetId = currentState.activeSetId;
+    const currentSet = currentState.sets[activeSetId];
+
+    if (currentSet && currentSet.cards) {
+      currentSet.cards = currentSet.cards.filter(
+        (card) => card.uuid !== cardId && card.id !== cardId,
+      );
+      setState(currentState);
+      saveState(currentState);
+    }
+
+    alert("Xóa thành công!");
+    window.location.hash = "#home";
+    window.dispatchEvent(new Event("hashchange"));
+  } catch (err) {
+    console.error(err);
+    alert("Lỗi kết nối Backend rồi ông ơi!");
+  }
+}
+
+async function handleDeleteCurrentSet() {
+  const activeSetId = getState().activeSetId;
+  if (!activeSetId) return;
+
+  if (!confirm("CẢNH BÁO: Ông sắp xóa TOÀN BỘ bộ thẻ này. Chắc chắn chưa?"))
+    return;
+
+  try {
+    const response = await fetch(
+      `https://localhost:7077/api/StudySets/${activeSetId}`,
+      {
+        method: "DELETE",
+      },
+    );
+
+    if (!response.ok) {
+      alert("Lỗi: Không xóa được bộ thẻ!");
+      return;
+    }
+
+    const currentState = getState();
+    if (currentState.sets[activeSetId]) {
+      delete currentState.sets[activeSetId];
+      setState(currentState);
+      saveState(currentState);
+    }
+
+    alert("Xóa thành công!");
+    window.location.hash = "#home";
+    window.dispatchEvent(new Event("hashchange"));
+  } catch (err) {
+    console.error(err);
+    alert("Lỗi kết nối Backend!");
+  }
 }
 
 // ============================================================
-// FLASHCARD HANDLERS
+// FLASHCARD DISPLAY LOGIC
 // ============================================================
-
 function flipFlashcard() {
-    const flashcard = document.getElementById('flashcard');
-    if (!flashcard) return;
-
-    flashcardState.isFlipped = !flashcardState.isFlipped;
-    flashcard.classList.toggle('flipped', flashcardState.isFlipped);
+  const flashcard = document.getElementById("flashcard");
+  if (!flashcard) return;
+  flashcardState.isFlipped = !flashcardState.isFlipped;
+  flashcard.classList.toggle("flipped", flashcardState.isFlipped);
 }
 
 function nextFlashcard() {
-    const set = getActiveSet();
-    if (!set || set.cards.length === 0) return;
-
-    flashcardState.currentIndex = (flashcardState.currentIndex + 1) % set.cards.length;
-    flashcardState.isFlipped = false;
-    updateFlashcardDisplay();
+  const set = getActiveSet();
+  if (!set || set.cards.length === 0) return;
+  flashcardState.currentIndex =
+    (flashcardState.currentIndex + 1) % set.cards.length;
+  flashcardState.isFlipped = false;
+  updateFlashcardDisplay();
 }
 
 function prevFlashcard() {
-    const set = getActiveSet();
-    if (!set || set.cards.length === 0) return;
-
-    flashcardState.currentIndex = (flashcardState.currentIndex - 1 + set.cards.length) % set.cards.length;
-    flashcardState.isFlipped = false;
-    updateFlashcardDisplay();
-}
-
-function shuffleFlashcards() {
-    const set = getActiveSet();
-    if (!set || set.cards.length === 0) return;
-
-    flashcardState.cardOrder = shuffleArray(flashcardState.cardOrder);
-    flashcardState.currentIndex = 0;
-    flashcardState.isFlipped = false;
-    updateFlashcardDisplay();
+  const set = getActiveSet();
+  if (!set || set.cards.length === 0) return;
+  flashcardState.currentIndex =
+    (flashcardState.currentIndex - 1 + set.cards.length) % set.cards.length;
+  flashcardState.isFlipped = false;
+  updateFlashcardDisplay();
 }
 
 function updateFlashcardDisplay() {
-    const set = getActiveSet();
-    if (!set) return;
-
-    const flashcard = document.getElementById('flashcard');
-    const front = document.getElementById('flashcardFront');
-    const back = document.getElementById('flashcardBack');
-    const counter = document.getElementById('flashcardCounter');
-
-    const actualIndex = flashcardState.cardOrder[flashcardState.currentIndex];
-    const card = set.cards[actualIndex];
-
-    if (!card) return;
-
-    if (front) front.textContent = card.term;
-    if (back) back.textContent = card.definition;
-    if (counter) counter.textContent = `${flashcardState.currentIndex + 1} / ${set.cards.length}`;
-    if (flashcard) flashcard.classList.remove('flipped');
+  const set = getActiveSet();
+  if (!set) return;
+  const card = set.cards[flashcardState.cardOrder[flashcardState.currentIndex]];
+  if (!card) return;
+  document.getElementById("flashcardFront").textContent = card.term;
+  document.getElementById("flashcardBack").textContent = card.definition;
+  document.getElementById("flashcardCounter").textContent =
+    `${flashcardState.currentIndex + 1} / ${set.cards.length}`;
+  document.getElementById("flashcard").classList.remove("flipped");
 }
 
 // ============================================================
-// DICTIONARY HANDLER
+// MODAL & SETTINGS LOADING
 // ============================================================
+function loadSettingsModal() {}
+function loadLearnSettingsModal() {}
+function loadKeyboardSettingsModal() {}
+async function handleWordClick(word, x, y) {}
+function handleKeyboard(e) {}
 
-async function handleWordClick(word, x, y) {
-    // Remove existing popup
-    document.querySelector('.dictionary-popup')?.remove();
-
-    const popup = document.createElement('div');
-    popup.className = 'dictionary-popup';
-    popup.textContent = 'Loading...';
-    popup.style.left = `${Math.min(x, window.innerWidth - 320)}px`;
-    popup.style.top = `${y + 20}px`;
-    document.body.appendChild(popup);
-
-    const closePopup = (e) => {
-        if (!popup.contains(e.target)) {
-            popup.remove();
-            document.removeEventListener('click', closePopup);
+export function setupEventListeners() {
+    // =====================================================================
+    // 1. AUTHENTICATION (ĐĂNG NHẬP / ĐĂNG KÝ VỚI C# BACKEND)
+    // =====================================================================
+    
+    // --- Đăng nhập ---
+    document.getElementById("loginForm")?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const username = document.getElementById("loginUsername").value;
+        const password = document.getElementById("loginPassword").value;
+        
+        try {
+            const response = await fetch("https://localhost:7077/api/Accounts/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username, password }),
+            });
+            const data = await response.json();
+            
+            if (response.ok) {
+                localStorage.setItem("quizlet_user", JSON.stringify(data));
+                alert("Login successful! Hello " + data.username);
+                location.reload();
+            } else {
+                alert(data.message || "Lỗi đăng nhập!");
+            }
+        } catch (err) {
+            alert("Backend chưa bật hoặc sai cổng 7077!");
         }
-    };
-    setTimeout(() => document.addEventListener('click', closePopup), 100);
+    });
 
-    try {
-        const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
-        const data = await response.json();
+    // --- Chuyển đổi giao diện Đăng nhập <-> Đăng ký ---
+    document.getElementById("showRegisterBtn")?.addEventListener("click", (e) => {
+        e.preventDefault();
+        document.getElementById("loginForm").classList.add("hidden");
+        document.getElementById("registerForm").classList.remove("hidden");
+        
+        const modalTitle = document.querySelector("#loginModal h2");
+        if (modalTitle) modalTitle.innerText = "Register for an account now!";
+    });
 
-        if (Array.isArray(data) && data.length > 0) {
-            const entry = data[0];
-            const meaning = entry.meanings[0];
-            const definition = meaning.definitions[0].definition;
-            popup.innerHTML = `
-                <strong class="block text-indigo-600 mb-1">${escapeHtml(entry.word)}</strong>
-                <span class="text-xs text-slate-500 italic block mb-1">${meaning.partOfSpeech}</span>
-                <p class="text-sm">${escapeHtml(definition)}</p>
-            `;
-        } else {
-            popup.textContent = `No definition found for "${word}".`;
+    document.getElementById("showLoginBtn")?.addEventListener("click", (e) => {
+        e.preventDefault();
+        document.getElementById("registerForm").classList.add("hidden");
+        document.getElementById("loginForm").classList.remove("hidden");
+        
+        const modalTitle = document.querySelector("#loginModal h2");
+        if (modalTitle) modalTitle.innerText = "Welcome to the website!";
+    });
+
+    // --- Đăng ký ---
+    document.getElementById("registerForm")?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const username = document.getElementById("regUsername").value.trim();
+        const email = document.getElementById("regEmail").value.trim();
+        const password = document.getElementById("regPassword").value;
+        const confirmPassword = document.getElementById("regConfirmPassword").value;
+
+        // Ràng buộc Username (3-20 ký tự, không ký tự đặc biệt)
+        const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
+        if (!usernameRegex.test(username)) {
+            alert("Tên đăng nhập phải từ 3-20 ký tự, viết liền không dấu và không chứa ký tự đặc biệt nha ní!");
+            return;
         }
-    } catch {
-        popup.textContent = 'Error fetching definition.';
-    }
-}
 
-// ============================================================
-// SET MANAGEMENT HANDLERS
-// ============================================================
+        // Ràng buộc Password (tối thiểu 6 ký tự)
+        if (password.length < 6) {
+            alert("Mật khẩu gì mà ngắn ngủn vậy! Đặt ít nhất 6 ký tự cho an toàn nhé!");
+            return;
+        }
 
-function handleCreateSet(name) {
-    const allSets = getAllSets();
-    if (Object.keys(allSets).length >= 50) {
-        alert('Maximum 50 sets reached!');
-        return null;
-    }
+        // Kiểm tra khớp Password
+        if (password !== confirmPassword) {
+            alert("Ê ní ơi, 2 cái mật khẩu nó đấm nhau kìa! Nhập lại cho giống nhau nha!");
+            return;
+        }
 
-    const set = createSet(name);
-    addSet(set);
-    saveState();
-    return set.uuid;
-}
+        try {
+            const response = await fetch("https://localhost:7077/api/Accounts/register", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    username: username,
+                    email: email,
+                    passwordHash: password, // Lưu ý: Nếu C# bắt thuộc tính 'password', hãy đổi key này thành 'password'
+                    role: "Learner"
+                }),
+            });
+            
+            if (response.ok) {
+                alert("Đăng ký thành công! Quay lại đăng nhập thôi ní ơi!");
+                document.getElementById("showLoginBtn").click();
+                document.getElementById("registerForm").reset();
+            } else {
+                const data = await response.json();
+                alert("Lỗi từ máy chủ: " + (data.message || data.title || "Có lỗi gì đó sai sai ở Backend!"));
+            }
+        } catch (err) {
+            alert("Lỗi kết nối Backend! C# đang ngủ hả?");
+        }
+    });
 
-function handleDeleteCurrentSet() {
-    const setId = getState().activeSetId;
-    const allSets = getAllSets();
+    // --- Đăng xuất ---
+    document.getElementById("logoutBtn")?.addEventListener("click", () => {
+        localStorage.removeItem("quizlet_user");
+        location.reload();
+    });
 
-    if (Object.keys(allSets).length <= 1) {
-        alert("You can't delete your only set!");
-        return;
-    }
+    // =====================================================================
+    // 2. NAVIGATION & HOME SCREEN
+    // =====================================================================
+    
+    document.getElementById("navAdminPanelBtn")?.addEventListener("click", window.navigateToAdminPanel);
+    
+    document.getElementById("homeCreateSetBtn")?.addEventListener("click", () => showModal("createSetModal"));
+    document.getElementById("homeSettingsBtn")?.addEventListener("click", () => {
+        loadSettingsModal();
+        showModal("settingsModal");
+    });
+    
+    document.getElementById("quickActionDue")?.addEventListener("click", handleReviewAllDue);
+    document.getElementById("quickActionRandom")?.addEventListener("click", handleRandomSet);
 
-    const set = getSet(setId);
-    if (!confirm(`Delete "${set?.name}" and all its cards?`)) return;
-
-    // Clear saved session if it's for this set
-    const session = getLearnSession();
-    if (session && session.setId === setId) {
-        clearLearnSessionStorage();
-        clearLearnSession();
-    }
-
-    deleteSetFromState(setId);
-    saveState();
-    navigateToHome();
-}
-
-// ============================================================
-// BULK IMPORT HANDLER
-// ============================================================
-
-function handleBulkImport() {
-    const text = document.getElementById('importText')?.value?.trim();
-    const delimiter = document.getElementById('importDelimiter')?.value;
-
-    if (!text) {
-        alert('Please paste some text to import.');
-        return;
-    }
-
-    const pairs = parseImportText(text, delimiter);
-
-    if (pairs.length === 0) {
-        alert('No valid pairs found.');
-        return;
-    }
-
-    if (pairs.length > 500) {
-        alert(`Too many cards (${pairs.length}). Max 500.`);
-        return;
-    }
-
-    const previewCount = Math.min(5, pairs.length);
-    let preview = `Found ${pairs.length} cards:\n\n`;
-    for (let i = 0; i < previewCount; i++) {
-        preview += `${i + 1}. ${pairs[i].term} → ${pairs[i].definition.substring(0, 30)}...\n`;
-    }
-    preview += '\nImport these cards?';
-
-    if (confirm(preview)) {
-        const setId = getState().activeSetId;
-        pairs.forEach((pair, i) => {
-            const card = createCard(pair.term, pair.definition);
+    // =====================================================================
+    // 3. CREATE STUDY SET
+    // =====================================================================
+    
+    document.getElementById("createSetForm")?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const name = document.getElementById("createSetNameInput").value.trim();
+        const userData = JSON.parse(localStorage.getItem("quizlet_user"));
+        
+        if (name) {
             try {
-                addCardToSet(setId, card);
-            } catch {
-                // Max cards reached
-            }
-        });
-
-        saveState();
-        hideModal('bulkImportModal');
-        document.getElementById('importText').value = '';
-        navigateToSetView(setId);
-        alert(`Added ${pairs.length} cards!`);
-    }
-}
-
-function parseImportText(text, delimiter) {
-    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l);
-    const pairs = [];
-
-    let actualDelim = delimiter;
-    if (delimiter === 'auto') {
-        actualDelim = detectDelimiter(text);
-    }
-
-    if (actualDelim === 'newline') {
-        for (let i = 0; i < lines.length - 1; i += 2) {
-            if (lines[i] && lines[i + 1]) {
-                pairs.push({ term: lines[i], definition: lines[i + 1] });
-            }
-        }
-    } else if (actualDelim === 'tab') {
-        lines.forEach(line => {
-            const parts = line.split('\t');
-            if (parts.length >= 2) {
-                pairs.push({ term: parts[0].trim(), definition: parts.slice(1).join('\t').trim() });
-            }
-        });
-    } else {
-        lines.forEach(line => {
-            const idx = line.indexOf(actualDelim);
-            if (idx > 0) {
-                pairs.push({
-                    term: line.substring(0, idx).trim(),
-                    definition: line.substring(idx + 1).trim()
+                const response = await fetch("https://localhost:7077/api/StudySets", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        title: name,
+                        description: "",
+                        isPublic: true,
+                        userId: userData ? userData.id : 1,
+                    }),
                 });
+                if (!response.ok) return alert("Lỗi: Backend từ chối lưu!");
+                
+                const result = await response.json();
+                const newSetId = result.data.id.toString();
+                
+                hideModal("createSetModal");
+                await fetchStudySetsFromSQL();
+                navigateToSetView(newSetId);
+            } catch (err) {
+                alert("Lỗi kết nối Backend!");
             }
-        });
-    }
-
-    return pairs.filter(p => p.term && p.definition);
-}
-
-function detectDelimiter(text) {
-    const lines = text.split(/\n/).filter(l => l.trim());
-    const candidates = [':', ';', ',', '\t'];
-
-    for (const char of candidates) {
-        const hits = lines.filter(l => l.includes(char)).length;
-        if (hits > lines.length * 0.5) return char === '\t' ? 'tab' : char;
-    }
-
-    return 'newline';
-}
-
-// ============================================================
-// SETTINGS HANDLERS
-// ============================================================
-
-function handleSaveSettings() {
-    const key = document.getElementById('elevenLabsKey')?.value?.trim() || '';
-    const autoRead = document.getElementById('settingAutoRead')?.checked || false;
-    const usePremium = document.getElementById('settingUsePremium')?.checked || false;
-    const voiceId = document.getElementById('voiceSelector')?.value || '21m00Tcm4TlvDq8ikWAM';
-
-    updateTtsState({
-        elevenLabsKey: key,
-        autoRead: autoRead,
-        usePremium: usePremium,
-        selectedVoiceId: voiceId
+        }
     });
 
-    saveState();
-    hideModal('settingsModal');
+    // =====================================================================
+    // 4. SET VIEW ACTIONS
+    // =====================================================================
+    
+    document.getElementById("setViewBackBtn")?.addEventListener("click", navigateToHome);
+    document.getElementById("setViewLearnBtn")?.addEventListener("click", () => navigateToLearnMode(getState().activeSetId));
+    document.getElementById("setViewAddCardBtn")?.addEventListener("click", () => showModal("addCardModal"));
+    document.getElementById("setViewDeleteBtn")?.addEventListener("click", handleDeleteCurrentSet);
+    document.getElementById("bulkImportBtn")?.addEventListener("click", () => showModal("bulkImportModal"));
+    
+    document.getElementById("setViewStarredBtn")?.addEventListener("click", () => navigateToLearnMode(getState().activeSetId, { mode: "starred" }));
+    document.getElementById("setViewDueBtn")?.addEventListener("click", () => navigateToLearnMode(getState().activeSetId, { mode: "due" }));
 
-    // Update mic indicator
-    const micIndicator = document.getElementById('micIndicator');
-    if (micIndicator) {
-        if (usePremium && key) {
-            micIndicator.classList.remove('text-slate-300');
-            micIndicator.classList.add('text-green-500');
+    // =====================================================================
+    // 5. ADD CARD (SINGLE)
+    // =====================================================================
+    
+    document.getElementById("addCardForm")?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const term = document.getElementById("addCardTermInput").value.trim();
+        const def = document.getElementById("addCardDefInput").value.trim();
+        const activeSetId = getState().activeSetId;
+        
+        if (term && def) {
+            try {
+                const response = await fetch(`https://localhost:7077/api/Flashcards`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        term: term,
+                        definition: def,
+                        studySetId: parseInt(activeSetId),
+                        isStarred: false,
+                    }),
+                });
+                if (!response.ok) return alert("Lưu thẻ thất bại!");
+                
+                hideModal("addCardModal");
+                await fetchStudySetsFromSQL();
+                navigateToSetView(activeSetId);
+            } catch (err) {
+                alert("Lỗi kết nối Backend!");
+            }
+        }
+    });
+
+    // =====================================================================
+    // 6. BULK IMPORT CARDS
+    // =====================================================================
+    
+    document.getElementById("bulkImportCloseBtn")?.addEventListener("click", () => hideModal("bulkImportModal"));
+    document.getElementById("importBtn")?.addEventListener("click", async () => {
+        const rawText = document.getElementById("importText").value.trim();
+        const delimiter = document.getElementById("importDelimiter").value;
+        const activeSetId = getState().activeSetId;
+        
+        if (!rawText) return alert("Dữ liệu trống kìa ông ơi!");
+
+        let cardsToImport = [];
+        const lines = rawText.split("\n").filter((l) => l.trim() !== "");
+
+        if (delimiter === "newline") {
+            for (let i = 0; i < lines.length; i += 2) {
+                if (lines[i] && lines[i + 1]) {
+                    cardsToImport.push({ term: lines[i].trim(), definition: lines[i + 1].trim() });
+                }
+            }
         } else {
-            micIndicator.classList.remove('text-green-500');
-            micIndicator.classList.add('text-slate-300');
+            lines.forEach((line) => {
+                let sep = delimiter;
+                if (delimiter === "auto") {
+                    if (line.includes("\t")) sep = "\t";
+                    else if (line.includes(":")) sep = ":";
+                    else if (line.includes(";")) sep = ";";
+                    else if (line.includes(",")) sep = ",";
+                    else sep = "-";
+                } else if (delimiter === "tab") {
+                    sep = "\t";
+                }
+                
+                const parts = line.split(sep);
+                if (parts.length >= 2) {
+                    cardsToImport.push({ term: parts[0].trim(), definition: parts.slice(1).join(sep).trim() });
+                }
+            });
         }
-    }
-}
 
-function handleToggleSM2() {
-    toggleFeature('spacedRepetition');
-    saveState();
+        if (cardsToImport.length === 0) return alert("Không tìm thấy dữ liệu hợp lệ!");
 
-    // Update UI
-    const checkbox = document.getElementById('settingSM2');
-    if (checkbox) {
-        checkbox.checked = getFeatures().spacedRepetition;
-    }
-}
-
-function handleExportSet() {
-    const set = getActiveSet();
-    if (!set) return;
-
-    const json = exportSetToJSON(set);
-    const filename = `${set.name.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.json`;
-    downloadJSON(json, filename);
-}
-
-async function handleImportSet() {
-    const jsonString = await uploadJSON();
-    if (!jsonString) return;
-
-    const data = importSetFromJSON(jsonString);
-    if (!data) {
-        alert('Invalid JSON file.');
-        return;
-    }
-
-    const newSet = createSet(data.name + ' (imported)');
-    data.cards.forEach(c => {
-        const card = createCard(c.term, c.definition);
-        if (c.starred) card.starred = true;
-        newSet.cards.push(card);
+        const btn = document.getElementById("importBtn");
+        btn.disabled = true;
+        btn.innerText = "Processing...";
+        let successCount = 0;
+        
+        try {
+            for (const card of cardsToImport) {
+                const response = await fetch(`https://localhost:7077/api/Flashcards`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        term: card.term,
+                        definition: card.definition,
+                        studySetId: parseInt(activeSetId),
+                        isStarred: false,
+                    }),
+                });
+                if (response.ok) successCount++;
+            }
+            alert(`Đã nạp thành công ${successCount}/${cardsToImport.length} thẻ vào SQL!`);
+            document.getElementById("importText").value = "";
+            hideModal("bulkImportModal");
+            
+            await fetchStudySetsFromSQL();
+            navigateToSetView(activeSetId);
+        } catch (err) {
+            alert("Lỗi Backend!");
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = `<span class="material-symbols-outlined">upload</span> Import Cards`;
+        }
     });
 
-    addSet(newSet);
-    saveState();
-    navigateToSetView(newSet.uuid);
-    alert(`Imported "${data.name}" with ${data.cards.length} cards!`);
-}
-
-function handleSaveKeyBindings() {
-    const bindings = {};
-    const inputs = document.querySelectorAll('#keyboardSettingsModal input[data-key]');
-    inputs.forEach(input => {
-        bindings[input.dataset.key] = input.value || input.dataset.default;
+    // =====================================================================
+    // 7. FLASHCARD & UI CONTROLS (Lật thẻ, Loa)
+    // =====================================================================
+    
+    document.getElementById("flashcard")?.addEventListener("click", flipFlashcard);
+    document.getElementById("flashcardPrev")?.addEventListener("click", (e) => { e.stopPropagation(); prevFlashcard(); });
+    document.getElementById("flashcardNext")?.addEventListener("click", (e) => { e.stopPropagation(); nextFlashcard(); });
+    
+    document.getElementById("flashcardSpeakBtn")?.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const set = getActiveSet();
+        if (!set || set.cards.length === 0) return;
+        
+        const cardIndex = flashcardState.cardOrder[flashcardState.currentIndex];
+        const card = set.cards[cardIndex];
+        if (card) {
+            const textToRead = flashcardState.isFlipped ? card.definition : card.term;
+            handleSpeak(textToRead);
+        }
     });
 
-    updateKeyBindings(bindings);
-    saveState();
-    hideModal('keyboardSettingsModal');
-}
+    // =====================================================================
+    // 8. LEARN MODE CONTROLS
+    // =====================================================================
+    
+    document.getElementById("learnExitBtn")?.addEventListener("click", async () => {
+        await fetchStudySetsFromSQL();
+        navigateToHome();
+        try {
+            const { updateDashboardProgress } = await import("./render.js");
+            updateDashboardProgress();
+        } catch (e) {}
+    });
 
-// ============================================================
-// KEYBOARD HANDLER
-// ============================================================
+    document.getElementById("nextQuestionBtn")?.addEventListener("click", nextQuestion);
+    document.getElementById("continueBtn")?.addEventListener("click", handleContinueLearning);
+    document.getElementById("setViewResetBtn")?.addEventListener("click", () => handleResetProgress(getState().activeSetId));
 
-function handleKeyboard(e) {
-    // Don't handle if typing in input
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
-        return;
-    }
+    // =====================================================================
+    // 9. MODALS & GLOBAL EVENTS
+    // =====================================================================
+    
+    document.querySelectorAll(".modal-overlay").forEach((overlay) => overlay.addEventListener("click", hideAllModals));
+    document.addEventListener("keydown", handleKeyboard);
 
-    // Don't handle if modal is open (except Escape)
-    if (isModalOpen() && e.key !== 'Escape') {
-        return;
-    }
-
-    const settings = getSettings();
-    const keys = settings.keyBindings;
-    const section = getCurrentSection();
-
-    // Escape - close modal or exit
-    if (e.key === 'Escape') {
-        if (isModalOpen()) {
-            hideAllModals();
-        } else if (section === 'learnSection') {
-            handleExitLearn();
+    // Xử lý sự kiện Màn hình Chúc mừng (End Session)
+    document.addEventListener('click', async (e) => {
+        if (e.target.innerText.includes("Restart Session")) {
+            await fetchStudySetsFromSQL();
+            const activeSetId = getState().activeSetId;
+            if (typeof clearLearnSessionStorage === 'function') clearLearnSessionStorage();
+            navigateToLearnMode(activeSetId);
         }
-        return;
-    }
-
-    // Set View keyboard controls
-    if (section === 'setViewSection') {
-        if (e.key === keys.prev || e.key === 'ArrowLeft') {
-            e.preventDefault();
-            prevFlashcard();
-        } else if (e.key === keys.next || e.key === 'ArrowRight') {
-            e.preventDefault();
-            nextFlashcard();
-        } else if (e.key === ' ' || e.key === keys.flip) {
-            e.preventDefault();
-            flipFlashcard();
-        } else if (e.key.toLowerCase() === keys.listen.toLowerCase()) {
-            const set = getActiveSet();
-            if (set && set.cards.length > 0) {
-                const idx = flashcardState.cardOrder[flashcardState.currentIndex];
-                speak(set.cards[idx]?.term);
-            }
+        
+        if (e.target.innerText.includes("Back to Set")) {
+            await fetchStudySetsFromSQL();
+            navigateToHome();
+            try {
+                const { updateDashboardProgress } = await import("./render.js");
+                updateDashboardProgress();
+            } catch (err) {}
         }
-    }
-
-    // Learn Mode keyboard controls
-    if (section === 'learnSection') {
-        const features = getFeatures();
-
-        if (features.spacedRepetition) {
-            // Grade keys (1-4)
-            if (e.key === keys.grade1 || e.key === '1') {
-                handleGrade(GRADES.AGAIN);
-            } else if (e.key === keys.grade2 || e.key === '2') {
-                handleGrade(GRADES.HARD);
-            } else if (e.key === keys.grade3 || e.key === '3') {
-                handleGrade(GRADES.GOOD);
-            } else if (e.key === keys.grade4 || e.key === '4') {
-                handleGrade(GRADES.EASY);
-            }
-        }
-
-        if (e.key.toLowerCase() === keys.listen.toLowerCase()) {
-            const session = getLearnSession();
-            const set = getActiveSet();
-            if (session && set) {
-                const card = set.cards.find(c => c.uuid === session.currentQuestionId);
-                if (card) speak(card.definition);
-            }
-        }
-    }
+    });
 }
 
 // ============================================================
 // EVENT LISTENERS SETUP
 // ============================================================
+// function setupEventListeners() {
+//   // --- 1. AUTH HANDLERS ---
+//   document
+//     .getElementById("loginForm")
+//     ?.addEventListener("submit", async (e) => {
+//       e.preventDefault();
+//       const username = document.getElementById("loginUsername").value;
+//       const password = document.getElementById("loginPassword").value;
+//       try {
+//         // 🔥 ĐỔI THÀNH LINK CỦA PHP:
+//         const response = await fetch("http://localhost/quizlet_api/login.php", {
+//           method: "POST",
+//           headers: { "Content-Type": "application/json" },
+//           body: JSON.stringify({ username, password }),
+//         });
+//         const data = await response.json();
 
-function setupEventListeners() {
-    // Home screen
-    document.getElementById('homeCreateSetBtn')?.addEventListener('click', () => {
-        showModal('createSetModal');
-        document.getElementById('createSetNameInput').value = '';
-        document.getElementById('createSetNameInput').focus();
-    });
+//         if (response.ok) {
+//           localStorage.setItem("quizlet_user", JSON.stringify(data));
+//           alert("Login successful ! Hello " + data.username);
+//           location.reload();
+//         } else {
+//           alert(data.message || "Lỗi đăng nhập!");
+//         }
+//       } catch (err) {
+//         alert("Lỗi kết nối Backend PHP! Coi lại XAMPP bật chưa?");
+//       }
+//     });
 
-    document.getElementById('homeSettingsBtn')?.addEventListener('click', () => {
-        loadSettingsModal();
-        showModal('settingsModal');
-    });
+//   // --- HIỆU ỨNG CHUYỂN QUA LẠI ĐĂNG NHẬP / ĐĂNG KÝ ---
+//   document.getElementById("showRegisterBtn")?.addEventListener("click", (e) => {
+//     e.preventDefault();
+//     document.getElementById("loginForm").classList.add("hidden");
+//     document.getElementById("registerForm").classList.remove("hidden");
 
-    document.getElementById('quickActionStudy')?.addEventListener('click', handleStudy5Min);
-    document.getElementById('quickActionDue')?.addEventListener('click', handleReviewAllDue);
-    document.getElementById('quickActionRandom')?.addEventListener('click', handleRandomSet);
+//     const modalTitle = document.querySelector("#loginModal h2");
+//     if (modalTitle) modalTitle.innerText = "Register for an account now!";
+//   });
 
-    // Create Set Modal
-    document.getElementById('createSetCloseBtn')?.addEventListener('click', () => hideModal('createSetModal'));
-    document.getElementById('createSetForm')?.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const name = document.getElementById('createSetNameInput').value.trim();
-        if (name) {
-            const newId = handleCreateSet(name);
-            if (newId) {
-                hideModal('createSetModal');
-                navigateToSetView(newId);
-            }
+//   document.getElementById("showLoginBtn")?.addEventListener("click", (e) => {
+//     e.preventDefault();
+//     document.getElementById("registerForm").classList.add("hidden");
+//     document.getElementById("loginForm").classList.remove("hidden");
+
+//     const modalTitle = document.querySelector("#loginModal h2");
+//     if (modalTitle) modalTitle.innerText = "Welcome to the website!";
+//   });
+
+//   // --- XỬ LÝ NÚT ĐĂNG KÝ BẮN LÊN API ---
+//   document
+//     .getElementById("registerForm")
+//     ?.addEventListener("submit", async (e) => {
+//       e.preventDefault();
+//       const username = document.getElementById("regUsername").value.trim();
+//       const email = document.getElementById("regEmail").value.trim();
+//       const password = document.getElementById("regPassword").value;
+//       const confirmPassword =
+//         document.getElementById("regConfirmPassword").value;
+
+//       // 🔥 1. RÀNG BUỘC USERNAME: Từ 3-20 ký tự, không ký tự đặc biệt
+//       const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
+//       if (!usernameRegex.test(username)) {
+//         alert(
+//           "Tên đăng nhập phải từ 3 đến 20 ký tự, viết liền không dấu và không chứa ký tự đặc biệt nha ní!",
+//         );
+//         return;
+//       }
+
+//       // 🔥 2. RÀNG BUỘC PASSWORD: Tối thiểu 6 ký tự
+//       if (password.length < 6) {
+//         alert(
+//           "Mật khẩu gì mà ngắn ngủn vậy! Đặt ít nhất 6 ký tự cho nó an toàn nhé!",
+//         );
+//         return;
+//       }
+
+//       // 🔥 3. KIỂM TRA MẬT KHẨU CÓ KHỚP NHAU KHÔNG
+//       if (password !== confirmPassword) {
+//         alert(
+//           "Ê ní ơi, 2 cái mật khẩu nó đấm nhau kìa! Nhập lại cho giống nhau nha!",
+//         );
+//         return;
+//       }
+
+//       // 🔥🔥🔥 ĐÃ THAY ĐỔI ĐƯỜNG LINK GỌI PHP Ở ĐÂY 🔥🔥🔥
+//       try {
+//         const response = await fetch(
+//           "http://localhost/quizlet_api/register.php",
+//           {
+//             method: "POST",
+//             headers: { "Content-Type": "application/json" },
+//             body: JSON.stringify({
+//               username: username,
+//               email: email,
+//               passwordHash: password,
+//               role: "Learner",
+//             }),
+//           },
+//         );
+
+//         if (response.ok) {
+//           alert(
+//             "Đăng ký thành công qua hệ thống PHP! Quay lại đăng nhập thôi!",
+//           );
+//           document.getElementById("showLoginBtn").click();
+//           document.getElementById("registerForm").reset();
+//         } else {
+//           const data = await response.json();
+//           alert("Lỗi: " + (data.message || "Bị lỗi gì đó rồi!"));
+//         }
+//       } catch (err) {
+//         alert("Lỗi kết nối Backend PHP! Coi lại XAMPP bật chưa?");
+//       }
+//       // 🔥🔥🔥 KẾT THÚC PHẦN THAY ĐỔI 🔥🔥🔥
+//     });
+
+//   document.getElementById("logoutBtn")?.addEventListener("click", () => {
+//     localStorage.removeItem("quizlet_user");
+//     location.reload();
+//   });
+
+//   // --- NÚT ADMIN PANEL TỪ TRÊN NAVBAR ---
+//   document
+//     .getElementById("navAdminPanelBtn")
+//     ?.addEventListener("click", window.navigateToAdminPanel);
+
+//   // --- 2. HOME SCREEN ---
+//   document
+//     .getElementById("homeCreateSetBtn")
+//     ?.addEventListener("click", () => showModal("createSetModal"));
+//   document.getElementById("homeSettingsBtn")?.addEventListener("click", () => {
+//     loadSettingsModal();
+//     showModal("settingsModal");
+//   });
+//   document
+//     .getElementById("quickActionDue")
+//     ?.addEventListener("click", handleReviewAllDue);
+//   document
+//     .getElementById("quickActionRandom")
+//     ?.addEventListener("click", handleRandomSet);
+
+//   // --- 3. CREATE SET ---
+//   document
+//     .getElementById("createSetForm")
+//     ?.addEventListener("submit", async (e) => {
+//       e.preventDefault();
+//       const name = document.getElementById("createSetNameInput").value.trim();
+//       const userData = JSON.parse(localStorage.getItem("quizlet_user"));
+//       if (name) {
+//         try {
+//           const response = await fetch("https://localhost:7077/api/StudySets", {
+//             method: "POST",
+//             headers: { "Content-Type": "application/json" },
+//             body: JSON.stringify({
+//               title: name,
+//               description: "",
+//               isPublic: true,
+//               userId: userData ? userData.id : 1,
+//             }),
+//           });
+//           if (!response.ok) return alert("Lỗi: Backend từ chối lưu!");
+//           const result = await response.json();
+//           const newSetId = result.data.id.toString();
+//           hideModal("createSetModal");
+//           await fetchStudySetsFromSQL();
+//           navigateToSetView(newSetId);
+//         } catch (err) {
+//           alert("Lỗi kết nối Backend!");
+//         }
+//       }
+//     });
+
+//   // --- 4. SET VIEW ACTIONS ---
+//   document
+//     .getElementById("setViewBackBtn")
+//     ?.addEventListener("click", navigateToHome);
+//   document
+//     .getElementById("setViewLearnBtn")
+//     ?.addEventListener("click", () =>
+//       navigateToLearnMode(getState().activeSetId),
+//     );
+//   document
+//     .getElementById("setViewAddCardBtn")
+//     ?.addEventListener("click", () => showModal("addCardModal"));
+//   document
+//     .getElementById("setViewDeleteBtn")
+//     ?.addEventListener("click", handleDeleteCurrentSet);
+//   document
+//     .getElementById("bulkImportBtn")
+//     ?.addEventListener("click", () => showModal("bulkImportModal"));
+
+//   document
+//     .getElementById("setViewStarredBtn")
+//     ?.addEventListener("click", () =>
+//       navigateToLearnMode(getState().activeSetId, { mode: "starred" }),
+//     );
+//   document
+//     .getElementById("setViewDueBtn")
+//     ?.addEventListener("click", () =>
+//       navigateToLearnMode(getState().activeSetId, { mode: "due" }),
+//     );
+
+//   // --- 5. ADD CARD ---
+//   document
+//     .getElementById("addCardForm")
+//     ?.addEventListener("submit", async (e) => {
+//       e.preventDefault();
+//       const term = document.getElementById("addCardTermInput").value.trim();
+//       const def = document.getElementById("addCardDefInput").value.trim();
+//       const activeSetId = getState().activeSetId;
+//       if (term && def) {
+//         try {
+//           const response = await fetch(
+//             `https://localhost:7077/api/Flashcards`,
+//             {
+//               method: "POST",
+//               headers: { "Content-Type": "application/json" },
+//               body: JSON.stringify({
+//                 term: term,
+//                 definition: def,
+//                 studySetId: parseInt(activeSetId),
+//                 isStarred: false,
+//               }),
+//             },
+//           );
+//           if (!response.ok) return alert("Lưu thẻ thất bại!");
+//           hideModal("addCardModal");
+//           await fetchStudySetsFromSQL();
+//           navigateToSetView(activeSetId);
+//         } catch (err) {
+//           alert("Lỗi kết nối Backend!");
+//         }
+//       }
+//     });
+
+//   // --- 6. BULK IMPORT ---
+//   document
+//     .getElementById("bulkImportCloseBtn")
+//     ?.addEventListener("click", () => hideModal("bulkImportModal"));
+//   document.getElementById("importBtn")?.addEventListener("click", async () => {
+//     const rawText = document.getElementById("importText").value.trim();
+//     const delimiter = document.getElementById("importDelimiter").value;
+//     const activeSetId = getState().activeSetId;
+//     if (!rawText) return alert("Dữ liệu trống kìa ông ơi!");
+
+//     let cardsToImport = [];
+//     const lines = rawText.split("\n").filter((l) => l.trim() !== "");
+
+//     if (delimiter === "newline") {
+//       for (let i = 0; i < lines.length; i += 2) {
+//         if (lines[i] && lines[i + 1])
+//           cardsToImport.push({
+//             term: lines[i].trim(),
+//             definition: lines[i + 1].trim(),
+//           });
+//       }
+//     } else {
+//       lines.forEach((line) => {
+//         let sep = delimiter;
+//         if (delimiter === "auto") {
+//           if (line.includes("\t")) sep = "\t";
+//           else if (line.includes(":")) sep = ":";
+//           else if (line.includes(";")) sep = ";";
+//           else if (line.includes(",")) sep = ",";
+//           else sep = "-";
+//         } else if (delimiter === "tab") sep = "\t";
+//         const parts = line.split(sep);
+//         if (parts.length >= 2)
+//           cardsToImport.push({
+//             term: parts[0].trim(),
+//             definition: parts.slice(1).join(sep).trim(),
+//           });
+//       });
+//     }
+
+//     if (cardsToImport.length === 0)
+//       return alert("Không tìm thấy dữ liệu hợp lệ!");
+
+//     const btn = document.getElementById("importBtn");
+//     btn.disabled = true;
+//     btn.innerText = "Processing...";
+//     let successCount = 0;
+//     try {
+//       for (const card of cardsToImport) {
+//         const response = await fetch(`https://localhost:7077/api/Flashcards`, {
+//           method: "POST",
+//           headers: { "Content-Type": "application/json" },
+//           body: JSON.stringify({
+//             term: card.term,
+//             definition: card.definition,
+//             studySetId: parseInt(activeSetId),
+//             isStarred: false,
+//           }),
+//         });
+//         if (response.ok) successCount++;
+//       }
+//       alert(
+//         `Đã nạp thành công ${successCount}/${cardsToImport.length} thẻ vào SQL!`,
+//       );
+//       document.getElementById("importText").value = "";
+//       hideModal("bulkImportModal");
+//       await fetchStudySetsFromSQL();
+//       navigateToSetView(activeSetId);
+//     } catch (err) {
+//       alert("Lỗi Backend!");
+//     } finally {
+//       btn.disabled = false;
+//       btn.innerHTML = `<span class="material-symbols-outlined">upload</span> Import Cards`;
+//     }
+//   });
+
+//   // --- 7. FLASHCARD & UI CONTROLS ---
+//   document
+//     .getElementById("flashcard")
+//     ?.addEventListener("click", flipFlashcard);
+//   document.getElementById("flashcardPrev")?.addEventListener("click", (e) => {
+//     e.stopPropagation();
+//     prevFlashcard();
+//   });
+//   document.getElementById("flashcardNext")?.addEventListener("click", (e) => {
+//     e.stopPropagation();
+//     nextFlashcard();
+//   });
+
+//   document
+//     .getElementById("flashcardSpeakBtn")
+//     ?.addEventListener("click", (e) => {
+//       e.stopPropagation();
+//       const set = getActiveSet();
+//       if (!set || set.cards.length === 0) return;
+//       const cardIndex = flashcardState.cardOrder[flashcardState.currentIndex];
+//       const card = set.cards[cardIndex];
+//       if (card) {
+//         const textToRead = flashcardState.isFlipped
+//           ? card.definition
+//           : card.term;
+//         handleSpeak(textToRead);
+//       }
+//     });
+
+//   // --- 8. LEARN MODE CONTROLS ---
+//   document
+//     .getElementById("learnExitBtn")
+//     ?.addEventListener("click", async () => {
+//       await fetchStudySetsFromSQL();
+//       navigateToHome();
+//       try {
+//         const { updateDashboardProgress } = await import("./render.js");
+//         updateDashboardProgress();
+//       } catch (e) {}
+//     });
+
+//   document
+//     .getElementById("nextQuestionBtn")
+//     ?.addEventListener("click", nextQuestion);
+//   document
+//     .getElementById("continueBtn")
+//     ?.addEventListener("click", handleContinueLearning);
+//   document
+//     .getElementById("setViewResetBtn")
+//     ?.addEventListener("click", () =>
+//       handleResetProgress(getState().activeSetId),
+//     );
+
+//   // --- 9. MODALS & KEYBOARD ---
+//   document
+//     .querySelectorAll(".modal-overlay")
+//     .forEach((overlay) => overlay.addEventListener("click", hideAllModals));
+//   document.addEventListener("keydown", handleKeyboard);
+
+//   // --- 10. SỰ KIỆN MÀN HÌNH CHÚC MỪNG ---
+//   document.addEventListener("click", async (e) => {
+//     if (e.target.innerText.includes("Restart Session")) {
+//       await fetchStudySetsFromSQL();
+//       const activeSetId = getState().activeSetId;
+//       if (typeof clearLearnSessionStorage === "function")
+//         clearLearnSessionStorage();
+//       navigateToLearnMode(activeSetId);
+//     }
+
+//     if (e.target.innerText.includes("Back to Set")) {
+//       await fetchStudySetsFromSQL();
+//       navigateToHome();
+//       try {
+//         const { updateDashboardProgress } = await import("./render.js");
+//         updateDashboardProgress();
+//       } catch (err) {}
+//     }
+//   });
+// }
+// 🔥 HÀM XÓA TỪNG FLASHCARD
+window.deleteSingleCard = async function(cardId) {
+    // Hỏi nhẹ một câu cho chắc cú
+    if (!confirm("Ê ní, có chắc là muốn xóa từ này khỏi bộ không?")) return;
+
+    try {
+        const response = await fetch(`https://localhost:7077/api/Flashcards/${cardId}`, {
+            method: "DELETE"
+        });
+
+        if (response.ok) {
+            // Xóa thành công thì load lại data từ SQL và render lại màn hình
+            await fetchStudySetsFromSQL(); 
+            const activeSetId = getState().activeSetId;
+            navigateToSetView(activeSetId); // Load lại giao diện bộ từ vựng
+        } else {
+            alert("Lỗi: Backend C# từ chối xóa!");
         }
-    });
-
-    // Set View
-    document.getElementById('setViewBackBtn')?.addEventListener('click', navigateToHome);
-    document.getElementById('setViewLearnBtn')?.addEventListener('click', () => {
-        navigateToLearnMode(getState().activeSetId, { mode: 'all' });
-    });
-    document.getElementById('setViewStarredBtn')?.addEventListener('click', () => {
-        navigateToLearnMode(getState().activeSetId, { mode: 'starred' });
-    });
-    document.getElementById('setViewDueBtn')?.addEventListener('click', () => {
-        navigateToLearnMode(getState().activeSetId, { mode: 'due' });
-    });
-    document.getElementById('setViewDeleteBtn')?.addEventListener('click', handleDeleteCurrentSet);
-
-    // Flashcard
-    document.getElementById('flashcard')?.addEventListener('click', flipFlashcard);
-    document.getElementById('flashcardPrev')?.addEventListener('click', (e) => { e.stopPropagation(); prevFlashcard(); });
-    document.getElementById('flashcardNext')?.addEventListener('click', (e) => { e.stopPropagation(); nextFlashcard(); });
-    document.getElementById('flashcardShuffle')?.addEventListener('click', (e) => { e.stopPropagation(); shuffleFlashcards(); });
-    document.getElementById('flashcardSpeak')?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const set = getActiveSet();
-        if (set && set.cards.length > 0) {
-            const idx = flashcardState.cardOrder[flashcardState.currentIndex];
-            speak(set.cards[idx]?.term);
-        }
-    });
-
-    // Add Card Modal
-    document.getElementById('setViewAddCardBtn')?.addEventListener('click', () => {
-        showModal('addCardModal');
-        document.getElementById('addCardTermInput').value = '';
-        document.getElementById('addCardDefInput').value = '';
-        document.getElementById('addCardTermInput').focus();
-    });
-    document.getElementById('addCardCloseBtn')?.addEventListener('click', () => hideModal('addCardModal'));
-    document.getElementById('addCardForm')?.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const term = document.getElementById('addCardTermInput').value.trim();
-        const def = document.getElementById('addCardDefInput').value.trim();
-        if (term && def) {
-            const card = createCard(term, def);
-            try {
-                addCardToSet(getState().activeSetId, card);
-                saveState();
-                document.getElementById('addCardTermInput').value = '';
-                document.getElementById('addCardDefInput').value = '';
-                document.getElementById('addCardTermInput').focus();
-                navigateToSetView(getState().activeSetId);
-            } catch (err) {
-                alert(err.message);
-            }
-        }
-    });
-
-    // Bulk Import Modal
-    document.getElementById('bulkImportBtn')?.addEventListener('click', () => {
-        showModal('bulkImportModal');
-        document.getElementById('importText').value = '';
-    });
-    document.getElementById('bulkImportCloseBtn')?.addEventListener('click', () => hideModal('bulkImportModal'));
-    document.getElementById('importBtn')?.addEventListener('click', handleBulkImport);
-
-    // Learn Mode
-    document.getElementById('learnExitBtn')?.addEventListener('click', handleExitLearn);
-    document.getElementById('nextQuestionBtn')?.addEventListener('click', nextQuestion);
-    document.getElementById('continueBtn')?.addEventListener('click', handleContinueLearning);
-    document.getElementById('restartLearnBtn')?.addEventListener('click', () => {
-        const session = getLearnSession();
-        navigateToLearnMode(getState().activeSetId, { mode: session?.mode || 'all' });
-    });
-    document.getElementById('backToSetBtn')?.addEventListener('click', () => {
-        clearLearnSessionStorage();
-        clearLearnSession();
-        navigateToSetView(getState().activeSetId);
-    });
-    document.getElementById('speakBtn')?.addEventListener('click', () => {
-        const questionText = document.getElementById('questionText')?.textContent;
-        if (questionText) speak(questionText);
-    });
-
-    // Learn Settings
-    document.getElementById('learnSettingsBtn')?.addEventListener('click', () => {
-        loadLearnSettingsModal();
-        showModal('learnSettingsModal');
-    });
-    document.getElementById('learnSettingsCloseBtn')?.addEventListener('click', () => hideModal('learnSettingsModal'));
-    document.getElementById('settingSM2')?.addEventListener('change', handleToggleSM2);
-    document.getElementById('exportSetBtn')?.addEventListener('click', handleExportSet);
-    document.getElementById('importSetBtn')?.addEventListener('click', handleImportSet);
-    document.getElementById('keyboardSettingsBtn')?.addEventListener('click', () => {
-        loadKeyboardSettingsModal();
-        showModal('keyboardSettingsModal');
-    });
-
-    // Settings Modal
-    document.getElementById('closeSettingsBtn')?.addEventListener('click', () => hideModal('settingsModal'));
-    document.getElementById('saveSettingsBtn')?.addEventListener('click', handleSaveSettings);
-    document.getElementById('settingUsePremium')?.addEventListener('change', (e) => {
-        const container = document.getElementById('premiumSettingsContainer');
-        if (container) {
-            container.classList.toggle('hidden', !e.target.checked);
-        }
-    });
-
-    // Keyboard Settings Modal
-    document.getElementById('keyboardSettingsCloseBtn')?.addEventListener('click', () => hideModal('keyboardSettingsModal'));
-    document.getElementById('saveKeyBindingsBtn')?.addEventListener('click', handleSaveKeyBindings);
-
-    // Modal overlays
-    document.querySelectorAll('.modal-overlay').forEach(overlay => {
-        overlay.addEventListener('click', hideAllModals);
-    });
-
-    // Global keyboard handler
-    document.addEventListener('keydown', handleKeyboard);
-
-    // Save on page unload
-    window.addEventListener('beforeunload', () => {
-        const session = getLearnSession();
-        if (session && session.unseenIds.length > 0) {
-            saveLearnSession(session);
-        }
-        saveState();
-    });
-}
-
-function loadSettingsModal() {
-    const ttsState = getTtsState();
-
-    const keyInput = document.getElementById('elevenLabsKey');
-    const autoReadCheck = document.getElementById('settingAutoRead');
-    const usePremiumCheck = document.getElementById('settingUsePremium');
-    const voiceSelect = document.getElementById('voiceSelector');
-    const premiumContainer = document.getElementById('premiumSettingsContainer');
-
-    if (keyInput) keyInput.value = ttsState.elevenLabsKey || '';
-    if (autoReadCheck) autoReadCheck.checked = ttsState.autoRead || false;
-    if (usePremiumCheck) usePremiumCheck.checked = ttsState.usePremium || false;
-    if (voiceSelect) voiceSelect.value = ttsState.selectedVoiceId || '21m00Tcm4TlvDq8ikWAM';
-    if (premiumContainer) {
-        premiumContainer.classList.toggle('hidden', !ttsState.usePremium);
+    } catch (err) {
+        alert("Lỗi kết nối Backend! C# tắt rồi hả?");
     }
-}
-
-function loadLearnSettingsModal() {
-    const features = getFeatures();
-    const sm2Check = document.getElementById('settingSM2');
-    if (sm2Check) sm2Check.checked = features.spacedRepetition;
-}
-
-function loadKeyboardSettingsModal() {
-    const settings = getSettings();
-    const keys = settings.keyBindings;
-
-    Object.entries(keys).forEach(([key, value]) => {
-        const input = document.querySelector(`#keyboardSettingsModal input[data-key="${key}"]`);
-        if (input) input.value = value;
-    });
-}
+};

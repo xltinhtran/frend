@@ -212,3 +212,39 @@ export function sortByDueDate(cards) {
 export function estimateStudyTime(cardCount, secondsPerCard = 10) {
     return Math.ceil((cardCount * secondsPerCard) / 60);
 }
+// ============================================================
+// DÁN VÀO CUỐI FILE spacedRep.js
+// ============================================================
+
+/**
+ * Gửi kết quả học tập sau khi đã tính toán SM-2 lên Backend
+ * @param {number} flashcardId - ID của thẻ
+ * @param {Object} sm2Result - Kết quả từ hàm calculateSM2
+ */
+export async function saveReviewToDatabase(flashcardId, sm2Result) {
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!user || !user.id) return;
+
+    try {
+        const response = await fetch('https://localhost:7077/api/StudyProgresses/review', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                userId: user.id,
+                flashcardId: flashcardId,
+                // Gửi các thông số đã tính toán để C# lưu đúng vào bảng StudyProgresses
+                easeFactor: sm2Result.ease,
+                interval: sm2Result.interval,
+                repetitions: sm2Result.repetitions,
+                nextReviewDate: new Date(sm2Result.dueAt).toISOString(),
+                grade: 3 // Mặc định hoặc lấy từ grade người dùng chọn
+            })
+        });
+
+        if (!response.ok) throw new Error('Không thể lưu tiến độ lên server');
+        
+        console.log("✅ Đã đồng bộ tiến độ SM-2 với Database!");
+    } catch (error) {
+        console.error("❌ Lỗi đồng bộ:", error);
+    }
+}
