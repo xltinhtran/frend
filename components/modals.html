@@ -1,0 +1,365 @@
+<div id="createSetModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+  <div class="modal-overlay absolute inset-0"></div>
+  <div class="relative bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-xl font-bold text-slate-800">Create New Set</h2>
+      <button id="createSetCloseBtn" class="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <form id="createSetForm">
+      <input type="text" id="createSetNameInput" placeholder="Set name..." class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 mb-4" required />
+      <button type="submit" class="w-full bg-indigo-600 text-white font-semibold py-3 rounded-lg hover:bg-indigo-700 transition-colors shadow-md">
+        Create Set
+      </button>
+      <button id="navAdminPanelBtn" class="hidden bg-slate-800 text-white px-4 py-2 rounded-lg font-semibold hover:bg-slate-900 transition-colors ml-2">
+         <span class="material-symbols-outlined align-middle">admin_panel_settings</span> Admin Panel
+      </button>
+    </form>
+  </div>
+</div>
+
+<div id="addCardModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+  <div class="modal-overlay absolute inset-0"></div>
+  <div class="relative bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-xl font-bold text-slate-800">Add Card</h2>
+      <button id="addCardCloseBtn" class="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <form id="addCardForm">
+      <div class="mb-4">
+        <label for="addCardTermInput" class="block text-sm font-medium text-slate-600 mb-1">Term</label>
+        <input type="text" id="addCardTermInput" placeholder="e.g., Photosynthesis" class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" required />
+      </div>
+      <div class="mb-4">
+        <label for="addCardDefInput" class="block text-sm font-medium text-slate-600 mb-1">Definition</label>
+        <textarea id="addCardDefInput" rows="3" placeholder="e.g., Process plants use to convert light..." class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" required></textarea>
+        <div class="mb-4">
+           <label class="block text-sm font-medium text-slate-700 mb-1">Câu ví dụ TOEIC (Example)</label>
+           <textarea id="addCardExampleInput" class="w-full px-4 py-2 border border-slate-300 rounded-lg" rows="2" placeholder="Ví dụ: We need to finalize the contract..."></textarea>
+        </div>
+      </div>
+      <div class="mb-4">
+           <label class="block text-sm font-medium text-slate-700 mb-1">
+           <span class="material-symbols-outlined align-middle text-sm">image</span> Link Hình Ảnh (Tùy chọn)
+           </label>
+        <input type="text" id="addCardImageInput" placeholder="Dán link ảnh từ Google vào đây (http://...)" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-indigo-500 transition-colors">
+      </div>
+      <button type="submit" class="w-full bg-indigo-600 text-white font-semibold py-3 rounded-lg hover:bg-indigo-700 transition-colors shadow-md">
+        Add Card
+      </button>
+    </form>
+  </div>
+</div>
+
+<div id="editCardModal" class="modal-overlay hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden" onclick="event.stopPropagation()">
+        <div class="flex justify-between items-center p-6 border-b border-slate-100">
+            <h2 class="text-xl font-bold text-slate-800">Sửa Thẻ Từ Vựng</h2>
+            <button class="text-slate-400 hover:text-slate-600 transition-colors" onclick="document.getElementById('editCardModal').classList.add('hidden')">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+        <form id="editCardForm" class="p-6">
+            <input type="hidden" id="editCardId">
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-slate-700 mb-1">Từ vựng (Term)</label>
+                <input type="text" id="editCardTermInput" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500" required>
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-slate-700 mb-1">Định nghĩa (Definition)</label>
+                <textarea id="editCardDefInput" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500" rows="3" required></textarea>
+            </div>
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-slate-700 mb-1">Câu ví dụ TOEIC (Example)</label>
+               <textarea id="editCardExampleInput" class="w-full px-4 py-2 border border-slate-300 rounded-lg" rows="2" placeholder="Ví dụ: I have an apple..."></textarea>
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-slate-700 mb-1">Link Hình Ảnh (Tùy chọn)</label>
+                <input type="text" id="editCardImageInput" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <button type="submit" class="w-full bg-indigo-600 text-white font-semibold py-3 rounded-lg hover:bg-indigo-700 transition-colors">
+                Lưu Thay Đổi
+            </button>
+        </form>
+    </div>
+</div>
+
+<div id="bulkImportModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+  <div class="modal-overlay absolute inset-0"></div>
+  <div class="relative bg-white rounded-2xl shadow-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-xl font-bold text-slate-800">Bulk Import Cards</h2>
+      <button id="bulkImportCloseBtn" class="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <div class="space-y-4">
+      <div>
+        <label for="importDelimiter" class="block text-sm font-medium text-slate-600 mb-1">Delimiter</label>
+        <select id="importDelimiter" class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white">
+          <option value="auto">Auto-Detect</option>
+          <option value=":">Colon (:)</option>
+          <option value=";">Semicolon (;)</option>
+          <option value=",">Comma (,)</option>
+          <option value="tab">Tab</option>
+          <option value="newline">Newline (alternating lines)</option>
+        </select>
+      </div>
+      <div>
+        <label for="importText" class="block text-sm font-medium text-slate-600 mb-1">Paste Data</label>
+        <textarea id="importText" rows="10" placeholder="Photosynthesis: Process plants use...&#10;Mitochondria: Powerhouse of cell..." class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 font-mono text-sm"></textarea>
+      </div>
+      <button id="importBtn" class="w-full flex items-center justify-center gap-2 bg-indigo-600 text-white font-semibold py-3 rounded-lg hover:bg-indigo-700 transition-colors shadow-md">
+        <span class="material-symbols-outlined">upload</span> Import Cards
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="settingsModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+  <div class="modal-overlay absolute inset-0"></div>
+  <div class="relative bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+    <div class="flex justify-between items-center mb-6">
+      <h2 class="text-2xl font-bold text-slate-800">Settings</h2>
+      <button id="closeSettingsBtn" class="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <div class="space-y-6">
+      <div class="flex items-center justify-between">
+        <label for="settingAutoRead" class="font-medium text-slate-700">Auto-read questions</label>
+        <div class="relative inline-block w-12 align-middle select-none">
+          <input type="checkbox" id="settingAutoRead" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer transition-all duration-200" />
+          <label for="settingAutoRead" class="toggle-label block overflow-hidden h-6 rounded-full bg-slate-300 cursor-pointer"></label>
+        </div>
+      </div>
+      <hr class="border-slate-200" />
+      <div>
+        <div class="flex items-center justify-between mb-4">
+          <label for="settingUsePremium" class="font-medium text-slate-700 flex items-center gap-2">
+            Premium voices
+            <span class="text-xs bg-gradient-to-r from-yellow-400 to-orange-400 text-white px-2 py-0.5 rounded-full font-bold">PRO</span>
+          </label>
+          <div class="relative inline-block w-12 align-middle select-none">
+            <input type="checkbox" id="settingUsePremium" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer transition-all duration-200" />
+            <label for="settingUsePremium" class="toggle-label block overflow-hidden h-6 rounded-full bg-slate-300 cursor-pointer"></label>
+          </div>
+        </div>
+        <div id="premiumSettingsContainer" class="hidden pl-4 border-l-2 border-indigo-200 space-y-4">
+          <p class="text-sm text-slate-500">Ultra-realistic voices powered by ElevenLabs.</p>
+          <div>
+            <label for="elevenLabsKey" class="block text-sm font-medium text-slate-700 mb-1">API Key</label>
+            <input type="password" id="elevenLabsKey" placeholder="sk_..." class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm" />
+            <p class="text-xs text-slate-400 mt-1">
+              <a href="https://elevenlabs.io" target="_blank" class="text-indigo-600 hover:underline">Get your key →</a>
+            </p>
+          </div>
+          <div>
+            <label for="voiceSelector" class="block text-sm font-medium text-slate-700 mb-1">Voice</label>
+            <select id="voiceSelector" class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm">
+              <option value="21m00Tcm4TlvDq8ikWAM">Rachel (Warm)</option>
+              <option value="ErXwobaYiN019PkySvjV">Antoni (Clear)</option>
+              <option value="AZnzlk1XvdvUeBnXmlld">Domi (Strong)</option>
+              <option value="EXAVITQu4vr4xnSDxMaL">Bella (Soft)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+    <button id="saveSettingsBtn" class="w-full mt-8 bg-indigo-600 text-white font-semibold py-3 rounded-lg hover:bg-indigo-700 transition-colors shadow-md">
+      Save Settings
+    </button>
+  </div>
+</div>
+
+<div id="learnSettingsModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+  <div class="modal-overlay absolute inset-0"></div>
+  <div class="relative bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md">
+    <div class="flex justify-between items-center mb-6">
+      <h2 class="text-xl font-bold text-slate-800">Learn Settings</h2>
+      <button id="learnSettingsCloseBtn" class="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <div class="space-y-4">
+      <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+        <div>
+          <label for="settingSM2" class="font-medium text-slate-700">Spaced Repetition (SM-2)</label>
+          <p class="text-xs text-slate-500">Optimize review timing for better retention</p>
+        </div>
+        <div class="relative inline-block w-12 align-middle select-none">
+          <input type="checkbox" id="settingSM2" checked class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer transition-all duration-200" />
+          <label for="settingSM2" class="toggle-label block overflow-hidden h-6 rounded-full bg-slate-300 cursor-pointer"></label>
+        </div>
+      </div>
+      <hr class="border-slate-200" />
+      <div class="flex gap-3">
+        <button id="exportSetBtn" class="flex-1 flex items-center justify-center gap-2 bg-slate-100 text-slate-700 font-medium py-3 rounded-lg hover:bg-slate-200 transition-colors">
+          <span class="material-symbols-outlined">download</span> Export JSON
+        </button>
+        <button id="importSetBtn" class="flex-1 flex items-center justify-center gap-2 bg-slate-100 text-slate-700 font-medium py-3 rounded-lg hover:bg-slate-200 transition-colors">
+          <span class="material-symbols-outlined">upload</span> Import JSON
+        </button>
+      </div>
+      <hr class="border-slate-200" />
+      <button id="keyboardSettingsBtn" class="w-full flex items-center justify-between p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors">
+        <div class="flex items-center gap-3">
+          <span class="material-symbols-outlined text-slate-600">keyboard</span>
+          <span class="font-medium text-slate-700">Keyboard Shortcuts</span>
+        </div>
+        <span class="material-symbols-outlined text-slate-400">chevron_right</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="keyboardSettingsModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+  <div class="modal-overlay absolute inset-0"></div>
+  <div class="relative bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+    <div class="flex justify-between items-center mb-6">
+      <h2 class="text-xl font-bold text-slate-800">Keyboard Shortcuts</h2>
+      <button id="keyboardSettingsCloseBtn" class="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <div class="space-y-3">
+      <div class="flex items-center justify-between">
+        <label class="text-sm text-slate-600">Flip Card</label>
+        <input type="text" data-key="flip" data-default="Space" value="Space" class="w-24 p-2 text-center border border-slate-300 rounded-lg text-sm font-mono" />
+      </div>
+      <div class="flex items-center justify-between">
+        <label class="text-sm text-slate-600">Previous Card</label>
+        <input type="text" data-key="prev" data-default="ArrowLeft" value="ArrowLeft" class="w-24 p-2 text-center border border-slate-300 rounded-lg text-sm font-mono" />
+      </div>
+      <div class="flex items-center justify-between">
+        <label class="text-sm text-slate-600">Next Card</label>
+        <input type="text" data-key="next" data-default="ArrowRight" value="ArrowRight" class="w-24 p-2 text-center border border-slate-300 rounded-lg text-sm font-mono" />
+      </div>
+      <hr class="border-slate-200 my-4" />
+      <div class="flex items-center justify-between">
+        <label class="text-sm text-slate-600">Grade: Again</label>
+        <input type="text" data-key="grade1" data-default="1" value="1" class="w-24 p-2 text-center border border-slate-300 rounded-lg text-sm font-mono" />
+      </div>
+      <div class="flex items-center justify-between">
+        <label class="text-sm text-slate-600">Grade: Hard</label>
+        <input type="text" data-key="grade2" data-default="2" value="2" class="w-24 p-2 text-center border border-slate-300 rounded-lg text-sm font-mono" />
+      </div>
+      <div class="flex items-center justify-between">
+        <label class="text-sm text-slate-600">Grade: Good</label>
+        <input type="text" data-key="grade3" data-default="3" value="3" class="w-24 p-2 text-center border border-slate-300 rounded-lg text-sm font-mono" />
+      </div>
+      <div class="flex items-center justify-between">
+        <label class="text-sm text-slate-600">Grade: Easy</label>
+        <input type="text" data-key="grade4" data-default="4" value="4" class="w-24 p-2 text-center border border-slate-300 rounded-lg text-sm font-mono" />
+      </div>
+      <hr class="border-slate-200 my-4" />
+      <div class="flex items-center justify-between">
+        <label class="text-sm text-slate-600">Toggle Star</label>
+        <input type="text" data-key="star" data-default="s" value="s" class="w-24 p-2 text-center border border-slate-300 rounded-lg text-sm font-mono" />
+      </div>
+      <div class="flex items-center justify-between">
+        <label class="text-sm text-slate-600">Listen (TTS)</label>
+        <input type="text" data-key="listen" data-default="l" value="l" class="w-24 p-2 text-center border border-slate-300 rounded-lg text-sm font-mono" />
+      </div>
+    </div>
+    <button id="saveKeyBindingsBtn" class="w-full mt-6 bg-indigo-600 text-white font-semibold py-3 rounded-lg hover:bg-indigo-700 transition-colors shadow-md">
+      Save Shortcuts
+    </button>
+  </div>
+</div>
+
+<div id="loginModal" class="modal hidden fixed inset-0 z-[100] flex items-center justify-center p-4">
+  <div class="modal-overlay absolute inset-0 bg-slate-900/60 backdrop-blur-md"></div>
+  <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md z-10 overflow-hidden animate-slide-up">
+    <div class="p-8">
+      <div class="text-center mb-8">
+        <div class="inline-flex items-center justify-center w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full mb-4">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+        </div>
+        <h2 class="text-3xl font-extrabold text-slate-800">Welcome to the website!</h2>
+      </div>
+      <form id="loginForm" class="space-y-5">
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-1 ml-1">Username</label>
+          <input type="text" id="loginUsername" required placeholder="Nhập tên tài khoản..." class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all" />
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-1 ml-1">Password</label>
+          <input type="password" id="loginPassword" required placeholder="••••••••" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all" />
+        </div>
+        <div class="pt-2">
+          <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl transition-all transform hover:scale-[1.02] active:scale-95 shadow-lg shadow-indigo-200">
+            Login 
+          </button>
+          <div class="text-center mt-4">
+            <a href="#" id="showRegisterBtn" class="text-sm text-indigo-600 hover:text-indigo-800 font-medium">Don't have an account yet? Register now!</a>
+          </div>
+        </div>
+      </form>
+      <form id="registerForm" class="hidden">
+        <div class="mb-4">
+          <label class="block text-sm font-semibold text-slate-700 mb-2">Username</label>
+          <input type="text" id="regUsername" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
+        </div>
+        <div class="mb-4">
+          <label class="block text-sm font-semibold text-slate-700 mb-2">Email</label>
+          <input type="email" id="regEmail" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
+        </div>
+        <div class="mb-6">
+          <label class="block text-sm font-semibold text-slate-700 mb-2">Password</label>
+          <input type="password" id="regPassword" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
+        </div>
+        <div class="mb-6">
+          <label class="block text-sm font-semibold text-slate-700 mb-2">Re-enter the password</label>
+          <input type="password" id="regConfirmPassword" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
+        </div>
+        <button type="submit" class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition-colors shadow-md shadow-indigo-200">
+          Create an account!
+        </button>
+        <div class="text-center mt-4">
+          <a href="#" id="showLoginBtn" class="text-sm text-slate-500 hover:text-slate-800 font-medium"> Back Login</a>
+        </div>
+      </form>
+      <div class="mt-6 text-center"></div>
+    </div>
+  </div>
+</div>
+
+<div id="progressModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-50 flex items-center justify-center">
+  <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
+    <h2 class="text-2xl font-bold text-slate-800 mb-4" id="progressUserName">Tiến độ của: ...</h2>
+    <div class="space-y-4">
+      <div class="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+        <span class="text-green-700 font-medium">Từ đã thuộc</span>
+        <span class="text-green-700 font-bold text-xl" id="progMastered">0</span>
+      </div>
+      <div class="flex justify-between items-center p-3 bg-orange-50 rounded-lg">
+        <span class="text-orange-700 font-medium">Đang học</span>
+        <span class="text-orange-700 font-bold text-xl" id="progLearning">0</span>
+      </div>
+      <div class="flex justify-between items-center bg-purple-50 p-4 rounded-lg mt-3">
+        <span class="text-purple-700 font-medium">Tổng số từ (Toàn hệ thống)</span>
+        <span id="progTotal" class="text-purple-700 font-bold text-xl">0</span>
+      </div>
+      <div class="flex justify-between items-center bg-slate-100 p-4 rounded-lg mt-3 border border-slate-200">
+        <span class="text-slate-600 font-medium">Còn lại chưa học</span>
+        <span id="progRemaining" class="text-slate-700 font-bold text-xl">0</span>
+      </div>
+      <div class="flex justify-between items-center p-4 bg-indigo-50 rounded-xl border border-indigo-100 mb-4">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-indigo-500">military_tech</span>
+          <span class="text-indigo-800 font-semibold">Cấp độ hiện tại</span>
+        </div>
+        <span id="progLevel" class="text-lg font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-lg border border-slate-200">
+          Chưa xác định
+        </span>
+      </div>
+    </div>
+    <button onclick="document.getElementById('progressModal').classList.add('hidden')" class="mt-6 w-full py-3 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors font-bold">Đóng</button>
+  </div>
+</div>

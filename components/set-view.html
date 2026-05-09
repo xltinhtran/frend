@@ -1,0 +1,80 @@
+<section id="setViewSection" class="hidden min-h-screen">
+  <div class="container mx-auto p-4 md:p-8 max-w-4xl">
+    <header class="flex items-center justify-between mb-6">
+      <button id="setViewBackBtn" class="flex items-center gap-1 text-slate-500 hover:text-slate-700 transition-colors" aria-label="Back">
+        <span class="material-symbols-outlined">arrow_back</span>
+        <span class="hidden sm:inline">Back</span>
+      </button>
+      <h1 id="setViewTitle" class="text-2xl font-bold text-slate-900 truncate max-w-md"></h1>
+      <button id="setViewDeleteBtn" class="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" aria-label="Delete Set">
+        <span class="material-symbols-outlined">delete</span>
+      </button>
+    </header>
+
+    <div class="bg-white rounded-2xl shadow-lg p-6 mb-6">
+      <div id="noCardsMessage" class="hidden text-center py-12 text-slate-400">
+        <span class="material-symbols-outlined text-5xl mb-3">style</span>
+        <p>No cards yet. Add some to see the flashcard preview!</p>
+      </div>
+
+      <div class="flex items-center justify-center gap-4">
+        <button id="flashcardPrev" class="p-3 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors" aria-label="Previous">
+          <span class="material-symbols-outlined text-3xl">arrow_back</span>
+        </button>
+
+        <div id="flashcard" class="flashcard-container w-full max-w-lg h-64 cursor-pointer" role="button" aria-label="Click to flip">
+          <div class="flashcard-inner bg-gradient-to-br from-indigo-50 to-slate-100 rounded-xl shadow-inner border border-slate-200">
+            <div id="flashcardFront" class="flashcard-front text-2xl font-semibold text-slate-800"></div>
+            <div id="flashcardBack" class="flashcard-back text-lg text-slate-600 bg-gradient-to-br from-slate-100 to-indigo-50 rounded-xl"></div>
+          </div>
+        </div>
+
+        <button id="flashcardNext" class="p-3 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors" aria-label="Next">
+          <span class="material-symbols-outlined text-3xl">arrow_forward</span>
+        </button>
+      </div>
+
+      <div class="flex items-center justify-center gap-4 mt-4">
+        <span id="flashcardCounter" class="text-sm text-slate-500 font-medium">0 / 0</span>
+        <button id="flashcardShuffle" class="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" aria-label="Shuffle">
+          <span class="material-symbols-outlined">shuffle</span>
+        </button>
+        <button id="flashcardSpeak" class="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" aria-label="Listen">
+          <button id="flashcardSpeakBtn" class="p-2 text-slate-400 hover:text-indigo-600">
+            <span class="material-symbols-outlined">volume_up</span>
+          </button>
+        </button>
+      </div>
+    </div>
+
+    <div class="flex flex-wrap gap-3">
+      <button id="setViewLearnBtn" class="flex-1 bg-green-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-600 transition-colors flex items-center justify-center gap-2">
+        <span class="material-symbols-outlined">school</span> Learn All ( <span class="learn-count">0</span> )
+      </button>
+      <button id="setViewStarredBtn" class="bg-slate-100 text-slate-600 px-6 py-3 rounded-lg font-semibold hover:bg-slate-200 transition-colors flex items-center gap-2">
+        <span class="material-symbols-outlined pointer-events-none">star</span> 
+        <span class="star-text">Starred ( 0 )</span>
+      </button>
+      <button id="setViewDueBtn" class="bg-orange-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-orange-600 transition-colors flex items-center gap-2">
+        <span class="material-symbols-outlined pointer-events-none">schedule</span> 
+        <span class="due-text">Due ( 0 )</span>
+      </button>
+    </div>
+    
+    <div class="flex gap-3 mb-6 mt-6">
+      <button id="setViewAddCardBtn" class="flex items-center gap-2 bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 transition-all shadow-sm">
+        <span class="material-symbols-outlined">add</span> Add Card
+      </button>
+      <button id="bulkImportBtn" class="flex items-center gap-2 bg-slate-200 text-slate-700 font-medium py-2 px-4 rounded-lg hover:bg-slate-300 transition-all">
+        <span class="material-symbols-outlined">upload</span> Bulk Import
+      </button>
+    </div>
+
+    <div class="flex items-center gap-2 mb-4">
+      <span class="material-symbols-outlined text-indigo-600">list</span>
+      <h3 class="font-semibold text-lg text-slate-800">Terms in this set</h3>
+    </div>
+
+    <div id="termListContainer" class="space-y-3 pb-8"></div>
+  </div>
+</section>
