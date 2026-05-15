@@ -27,8 +27,7 @@ function renderSetViewHeader(set, handlers) {
     dueCount.textContent = due;
   }
 }
-
-function renderFlashcardCarousel(set, handlers) {
+export function renderFlashcardCarousel(set, handlers) {
   const flashcard = document.getElementById("flashcard");
   const flashcardFront = document.getElementById("flashcardFront");
   const flashcardBack = document.getElementById("flashcardBack");
@@ -69,10 +68,8 @@ function renderFlashcardCarousel(set, handlers) {
       }
   }
 
-  // 🔥 ĐÃ FIX CHUẨN CÂU VÍ DỤ: GOM HOA VÀ THƯỜNG
   if (flashcardBack) {
       const exampleText = card.example || card.Example || "";
-
       flashcardBack.innerHTML = `
           <div class="flex flex-col items-center justify-center gap-4 h-full px-6 text-center w-full">
               <div class="text-3xl font-bold text-slate-800">${escapeHtml(card.definition)}</div>
@@ -83,13 +80,36 @@ function renderFlashcardCarousel(set, handlers) {
           </div>
       `;
   }
-  
+
   if (flashcardCounter)
     flashcardCounter.textContent = `${index + 1} / ${set.cards.length}`;
 
   flashcard.classList.remove("flipped");
-}
 
+  // 🔥 FIX LỖI LOA BỊ KẸT Ở THẺ ĐẦU TIÊN 🔥
+  const speakBtn = document.getElementById("flashcardSpeakBtn");
+  if (speakBtn) {
+      // Đập nút cũ đi xây nút mới để xóa bỏ event bị kẹt
+      const newSpeakBtn = speakBtn.cloneNode(true);
+      speakBtn.parentNode.replaceChild(newSpeakBtn, speakBtn);
+
+      newSpeakBtn.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation(); // Chặn không cho code cũ chọc vào
+
+          // Mẹo: Lấy textContent trực tiếp từ thẻ Front (nó luôn là từ Tiếng Anh hiện tại)
+          // Cách này đảm bảo 100% không bao giờ đọc sai thẻ!
+          const currentTerm = document.getElementById("flashcardFront").textContent.trim();
+
+          if ('speechSynthesis' in window) {
+              window.speechSynthesis.cancel();
+              const msg = new SpeechSynthesisUtterance(currentTerm);
+              msg.lang = 'en-US'; // Ép cứng đọc giọng Mỹ xịn xò
+              window.speechSynthesis.speak(msg);
+          }
+      });
+  }
+}
 export function renderSetViewActions(set, handlers) {
     const learnBtn = document.getElementById("setViewLearnBtn");
     const starredBtn = document.getElementById("setViewStarredBtn");

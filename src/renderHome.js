@@ -358,7 +358,7 @@ window.resetAllProgress = async function () {
   if (!userData) return alert("Phải đăng nhập mới reset được ông ơi!");
 
   const confirmReset = confirm(
-    "⚠️ Warning: Are you sure you want to reset all progress? This action cannot be undone!",
+    "⚠️ CẢNH BÁO: Xóa sạch toàn bộ tiến độ học (cả trên Server lẫn máy). Chắc chắn không?"
   );
 
   if (!confirmReset) return;
@@ -367,24 +367,28 @@ window.resetAllProgress = async function () {
     const btn = document.getElementById("btnResetAll");
     if (btn) btn.innerText = "Processing...";
 
-    const res = await fetch(
-      `https://localhost:7077/api/StudySets/dashboard/${userData.id}`,
-    );
+    const res = await fetch(`https://localhost:7077/api/StudySets/Dashboard/${userData.id}`);
     const dashboardData = await res.json();
 
     const resetPromises = dashboardData.map((set) =>
-      fetch(
-        `https://localhost:7077/api/StudyProgresses/reset/${set.id}/${userData.id}`,
-        { method: "DELETE" },
-      ),
+      fetch(`https://localhost:7077/api/StudyProgresses/reset/${set.id}/${userData.id}`, {
+        method: "DELETE",
+      })
     );
-
     await Promise.all(resetPromises);
 
-    alert("Tẩy não thành công! Mọi thứ đã về 0%. Chúc ông cày lại vui vẻ!");
+    // 🔥 BOM NGUYÊN TỬ CHO RESET ALL 🔥
+    const savedUser = localStorage.getItem("quizlet_user"); // Cất tài khoản
+    
+    localStorage.clear(); // Quét sạch sành sanh mọi vết tích
+    sessionStorage.clear();
+    
+    if (savedUser) localStorage.setItem("quizlet_user", savedUser); // Trả tài khoản về
+
+    alert("Tẩy não thành công 100%! Mọi thứ đã về 0%.");
     location.reload();
   } catch (err) {
-    console.error("Lỗi reset toàn bộ:", err);
-    alert("Lỗi kết nối Backend rồi, kiểm tra lại cổng 7077 nhé!");
+    console.error("Lỗi khi Reset All:", err);
+    alert("Có lỗi xảy ra khi tẩy não, vui lòng thử lại!");
   }
 };

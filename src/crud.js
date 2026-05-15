@@ -3,6 +3,7 @@ import { saveState } from "./storage.js";
 import { fetchStudySetsFromSQL } from "./api.js";
 import { navigateToLearnMode } from "./learn.js";
 
+
 export async function handleResetProgress(setId) {
   const userData = JSON.parse(localStorage.getItem("quizlet_user"));
   if (!userData) return alert("Phải đăng nhập mới reset được ông ơi!");
@@ -16,8 +17,16 @@ export async function handleResetProgress(setId) {
     );
 
     if (response.ok) {
+      // 🔥 BOM NGUYÊN TỬ: XÓA SẠCH 100% BỘ NHỚ TRÌNH DUYỆT 🔥
+      const savedUser = localStorage.getItem("quizlet_user"); // Cất tài khoản
+      
+      localStorage.clear(); // Nổ tung mọi file save kẹt lại
+      sessionStorage.clear();
+      
+      if (savedUser) localStorage.setItem("quizlet_user", savedUser); // Trả tài khoản về
+
       alert("Đã xóa sạch bộ nhớ, tiến độ về 0%!");
-      if (window.navigateToHome) window.navigateToHome();
+      window.location.reload(); 
     }
   } catch (err) {
     console.error("Lỗi reset:", err);

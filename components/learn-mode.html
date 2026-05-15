@@ -5,7 +5,15 @@
         <span class="material-symbols-outlined">close</span>
         <span class="hidden sm:inline">Exit</span>
       </button>
-      <h2 class="text-lg font-semibold text-slate-700">Learn Mode</h2>
+
+      <select id="gameModeSelect" class="bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm font-bold py-2 px-4 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm cursor-pointer mx-auto transition-colors hover:bg-indigo-100">
+          <option value="AUTO">🎲 Random (Tự động trộn)</option>
+          <option value="MULTIPLE_CHOICE">📝 Trắc nghiệm</option>
+          <option value="DICTATION">🎧 Nghe chép chính tả</option>
+          <option value="FILL_BLANK">✍️ Điền từ vào chỗ trống</option>
+          <option value="ARRANGE">🧩 Kéo thả sắp xếp câu</option>
+      </select>
+
       <button id="learnSettingsBtn" class="p-2 text-slate-400 hover:text-slate-600 hover:bg-white rounded-lg transition-colors" aria-label="Learn Settings">
         <span class="material-symbols-outlined">settings</span>
       </button>
@@ -23,46 +31,44 @@
 
     <div id="learnContent" class="bg-white rounded-2xl shadow-lg p-6">
       <div class="bg-gradient-to-br from-slate-50 to-slate-100 p-6 rounded-xl mb-6 min-h-[140px] flex items-center border border-slate-200">
-        <button id="speakBtn" class="mr-6 text-slate-400 hover:text-indigo-600 flex-shrink-0 transition-colors p-3 rounded-full hover:bg-white" aria-label="Listen">
-          <button id="flashcardSpeakBtn" class="p-2 text-slate-400 hover:text-indigo-600">
-            <span class="material-symbols-outlined">volume_up</span>
-          </button>
+        <button id="flashcardSpeakBtn" class="mr-6 text-slate-400 hover:text-indigo-600 flex-shrink-0 transition-colors p-3 rounded-full hover:bg-white">
+          <span class="material-symbols-outlined">volume_up</span>
         </button>
         <div class="flex-grow text-center">
           <p id="questionText" class="text-xl text-slate-800 leading-relaxed"></p>
         </div>
       </div>
 
-      <div id="gradeButtons" class="hidden flex gap-3">
-        </div>
+      <div id="gradeButtons" class="hidden flex gap-3"></div>
+      <div id="answerOptions" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
 
-      <div id="answerOptions" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div id="textInputArea" class="hidden mt-6 text-center animate-fade-in">
+        <input type="text" id="learnTextInput" class="w-full max-w-md px-4 py-3 text-lg border-2 border-slate-300 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none text-center font-semibold text-slate-700 shadow-inner" placeholder="Gõ câu trả lời vào đây..." autocomplete="off">
+        <button id="submitTextBtn" class="mt-4 bg-indigo-600 text-white font-bold py-3 px-8 rounded-xl hover:bg-indigo-700 transition-colors w-full max-w-md shadow-md">Kiểm tra</button>
+      </div>
+
+      <div id="arrangeArea" class="hidden mt-6 animate-fade-in">
+        <div id="arrangeTarget" class="min-h-[60px] p-4 border-2 border-dashed border-slate-300 rounded-xl mb-6 flex flex-wrap gap-2 items-center bg-slate-50 shadow-inner"></div>
+        <div id="arrangeSource" class="flex flex-wrap gap-2 justify-center"></div>
+        <div class="text-center mt-6">
+            <button id="submitArrangeBtn" class="bg-indigo-600 text-white font-bold py-3 px-8 rounded-xl hover:bg-indigo-700 transition-colors w-full max-w-md shadow-md hidden">Kiểm tra</button>
         </div>
+      </div>
     </div>
 
     <div id="feedbackSection" class="hidden bg-white rounded-2xl shadow-lg p-6 mt-6 text-center">
       <h3 id="feedbackTitle" class="text-xl font-bold"></h3>
       <p id="feedbackText" class="mt-2 text-slate-600"></p>
-      <button id="nextQuestionBtn" class="mt-6 bg-indigo-600 text-white font-semibold py-3 px-8 rounded-lg hover:bg-indigo-700 transition-all shadow-md">
-        Next
-      </button>
+      <button id="nextQuestionBtn" class="mt-6 bg-indigo-600 text-white font-semibold py-3 px-8 rounded-lg hover:bg-indigo-700 transition-all shadow-md">Next</button>
     </div>
 
     <div id="summaryScreen" class="hidden bg-white rounded-2xl shadow-lg p-8 mt-6 text-center">
-      <button id="continueBtn" class="bg-indigo-600 text-white font-semibold py-3 px-8 rounded-lg hover:bg-indigo-700 mb-8 shadow-lg transition-all hover:scale-105">
-        Continue Learning
-      </button>
+      <button id="continueBtn" class="bg-indigo-600 text-white font-semibold py-3 px-8 rounded-lg hover:bg-indigo-700 mb-8 shadow-lg transition-all hover:scale-105">Continue Learning</button>
       <h2 class="text-2xl font-bold text-slate-800 mb-2">Batch Complete!</h2>
       <p class="text-slate-500 mb-6">Here's how you did on the last 10 questions.</p>
       <div class="flex justify-center gap-12 mb-6">
-        <div>
-          <span id="summaryCorrect" class="text-4xl font-bold text-green-500">0</span>
-          <p class="text-slate-500">Correct</p>
-        </div>
-        <div>
-          <span id="summaryMissed" class="text-4xl font-bold text-red-500">0</span>
-          <p class="text-slate-500">Missed</p>
-        </div>
+        <div><span id="summaryCorrect" class="text-4xl font-bold text-green-500">0</span><p class="text-slate-500">Correct</p></div>
+        <div><span id="summaryMissed" class="text-4xl font-bold text-red-500">0</span><p class="text-slate-500">Missed</p></div>
       </div>
       <div id="summaryList" class="text-left max-h-64 overflow-y-auto"></div>
     </div>
@@ -72,12 +78,8 @@
       <h2 class="text-3xl font-bold text-green-600 mb-4">Congratulations!</h2>
       <p class="text-lg text-slate-600 mb-8">You've mastered all the cards in this session.</p>
       <div class="flex flex-col sm:flex-row gap-4 justify-center">
-        <button id="restartLearnBtn" class="bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-indigo-700 transition-all shadow-md">
-          Restart Session
-        </button>
-        <button id="backToSetBtn" class="bg-slate-200 text-slate-700 font-semibold py-3 px-6 rounded-lg hover:bg-slate-300 transition-all">
-          Back to Set
-        </button>
+        <button id="restartLearnBtn" class="bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-indigo-700 transition-all shadow-md">Restart Session</button>
+        <button id="backToSetBtn" class="bg-slate-200 text-slate-700 font-semibold py-3 px-6 rounded-lg hover:bg-slate-300 transition-all">Back to Set</button>
       </div>
     </div>
   </div>

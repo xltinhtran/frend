@@ -9,7 +9,7 @@ window.applyRolePermissions = function() {
     const user = JSON.parse(userDataStr);
     const currentRole = (user.role || "").trim().toLowerCase();
     
-    // Gom các thành phần giao diện cần kiểm soát
+    // 1. Cập nhật thêm 2 nút Cam và Tím vào đây
     const els = {
         studyArea: document.getElementById("studyArea"), 
         adminView: document.getElementById("adminView"),
@@ -19,13 +19,17 @@ window.applyRolePermissions = function() {
         deleteSetBtn: document.getElementById("setViewDeleteBtn"),
         bulkBtn: document.getElementById("bulkImportBtn"), 
         search: document.getElementById("editorSearchContainer"),
-        reset: document.getElementById("quickActionReset")
+        reset: document.getElementById("quickActionReset"),
+        // Thêm 2 "thủ phạm" này vào:
+        due: document.getElementById("quickActionDue"), 
+        random: document.getElementById("quickActionRandom")
     };
 
     if (els.studyArea) els.studyArea.classList.remove("hidden");
     if (els.adminView) els.adminView.classList.add("hidden");
     if (els.search) els.search.classList.add("hidden");
     
+    // Ẩn mặc định các nút quản lý
     [els.createBtn, els.adminBtn, els.addCardBtn, els.deleteSetBtn, els.bulkBtn].forEach(el => el?.classList.add("hidden"));
 
     if (window.learnerObserver) {
@@ -42,11 +46,19 @@ window.applyRolePermissions = function() {
 
     if (currentRole === "editor") {
         styleEl.innerHTML = ""; 
+        // Editor được hiện các nút tạo/sửa
         [els.createBtn, els.addCardBtn, els.deleteSetBtn, els.bulkBtn, els.search].forEach(el => el?.classList.remove("hidden"));
-        if (els.reset) els.reset.style.display = "none";
+        
+        // 🔥 ĐUỔI KHỨ ĐOẠN NÀY: Ẩn sạch 3 nút tính năng học tập
+        [els.reset, els.due, els.random].forEach(el => el?.classList.add("hidden"));
+
+        // Quét thêm lần nữa theo nội dung để chắc chắn
         document.querySelectorAll("button").forEach(btn => {
             const txt = btn.innerText.toLowerCase();
-            if (["learn", "random", "reset", "review", "starred"].some(k => txt.includes(k))) btn.classList.add("hidden");
+            // Nếu nút chứa các từ khóa học tập thì cho bay màu
+            if (["learn", "random", "reset", "review", "starred", "ngẫu nhiên", "đã học"].some(k => txt.includes(k))) {
+                btn.classList.add("hidden");
+            }
         });
     } else if (currentRole === "admin") {
         styleEl.innerHTML = ""; 
@@ -55,7 +67,7 @@ window.applyRolePermissions = function() {
         if (els.adminBtn) els.adminBtn.classList.remove("hidden");
         if (typeof window.loadAdminUsers === "function") window.loadAdminUsers();
     } else {
-        // 🔥 LÀ LEARNER: SÁT THỦ DIỆT NÚT SỬA/XÓA
+        // ... (Phần code Learner giữ nguyên vì ông viết "Sát thủ" quá chuẩn rồi)
         styleEl.innerHTML = `
             [onclick*="edit"], [onclick*="delete"], [onclick*="Edit"], [onclick*="Delete"],
             .edit-btn, .delete-btn, .btn-edit, .btn-delete, .update-btn, .remove-btn { 
