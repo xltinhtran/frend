@@ -22,11 +22,17 @@ function renderSetViewHeader(set, handlers) {
   if (cardCount) cardCount.textContent = set.cards.length;
   if (starredCount)
     starredCount.textContent = set.cards.filter((c) => c.starred).length;
+  
   if (dueCount) {
-    const due = set.cards.filter((c) => c.stats?.dueAt <= Date.now()).length;
+    // 🔥 CẬP NHẬT: Lọc Due đếm những từ chưa đủ 3 lần đúng
+    const due = set.cards.filter((c) => {
+        const rep = c.stats ? (c.stats.repetitions !== undefined ? c.stats.repetitions : (c.stats.Repetitions || 0)) : 0;
+        return rep < 3;
+    }).length;
     dueCount.textContent = due;
   }
 }
+
 export function renderFlashcardCarousel(set, handlers) {
   const flashcard = document.getElementById("flashcard");
   const flashcardFront = document.getElementById("flashcardFront");
@@ -70,8 +76,7 @@ export function renderFlashcardCarousel(set, handlers) {
 
   if (flashcardBack) {
       const exampleText = card.example || card.Example || "";
-      flashcardBack.innerHTML = `
-          <div class="flex flex-col items-center justify-center gap-4 h-full px-6 text-center w-full">
+      flashcardBack.innerHTML = `<div class="flex flex-col items-center justify-center gap-4 h-full px-6 text-center w-full">
               <div class="text-3xl font-bold text-slate-800">${escapeHtml(card.definition)}</div>
               ${exampleText !== "" ? `
               <div class="text-lg italic text-indigo-600 bg-indigo-50 p-4 rounded-xl border-l-4 border-indigo-500 w-full max-w-md shadow-sm">
@@ -110,6 +115,7 @@ export function renderFlashcardCarousel(set, handlers) {
       });
   }
 }
+
 export function renderSetViewActions(set, handlers) {
     const learnBtn = document.getElementById("setViewLearnBtn");
     const starredBtn = document.getElementById("setViewStarredBtn");
@@ -130,11 +136,15 @@ export function renderSetViewActions(set, handlers) {
     }
 
     const starredCount = set.cards.filter((c) => c.starred).length;
-    const dueCount = set.cards.filter((c) => c.stats && (c.stats.repetitions > 0 || c.stats.Repetitions > 0)).length;
+    
+    // 🔥 CẬP NHẬT: Lọc nút Cam Due cũng dựa theo < 3
+    const dueCount = set.cards.filter((c) => {
+        const rep = c.stats ? (c.stats.repetitions !== undefined ? c.stats.repetitions : (c.stats.Repetitions || 0)) : 0;
+        return rep < 3;
+    }).length;
     
     if (learnBtn) {
-        learnBtn.disabled = set.cards.length < 2;
-        learnBtn.innerHTML = `<span class="material-symbols-outlined pointer-events-none">school</span> Learn All ( ${set.cards.length} )`;
+        learnBtn.disabled = set.cards.length < 2;learnBtn.innerHTML = `<span class="material-symbols-outlined pointer-events-none">school</span> Learn All ( ${set.cards.length} )`;
     }
     
     if (starredBtn) {
@@ -186,9 +196,7 @@ export function renderTermList(set, handlers) {
 
         starIcon.onclick = (e) => {
             e.preventDefault();
-            e.stopPropagation();
-            
-            const isStarred = starIcon.classList.contains("text-yellow-400");
+            e.stopPropagation();const isStarred = starIcon.classList.contains("text-yellow-400");
             card.starred = !isStarred; 
 
             if (isStarred) {
@@ -224,10 +232,11 @@ export function renderTermList(set, handlers) {
             rep = card.stats.repetitions !== undefined ? card.stats.repetitions : (card.stats.Repetitions || 0);
         }
         
+        // 🔥 CẬP NHẬT: Nhãn dán dựa theo mốc 3 lần là Mastered
         let statusBadge = "";
         if (rep === 0) {
             statusBadge = `<span class="text-xs font-medium bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full ml-3 border border-slate-200">New</span>`;
-        } else if (rep < 4) {
+        } else if (rep < 3) {
             statusBadge = `<span class="text-xs font-medium bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full ml-3 border border-orange-200">Learning</span>`;
         } else {
             statusBadge = `<span class="text-xs font-medium bg-green-100 text-green-600 px-2 py-0.5 rounded-full ml-3 border border-green-200">Mastered</span>`;
@@ -235,10 +244,8 @@ export function renderTermList(set, handlers) {
 
         const imgUrl = card.imageUrl || card.ImageUrl || "";
         const imgThumbnailHtml = imgUrl !== "" 
-            ? `<img src="${imgUrl}" class="w-12 h-12 object-cover rounded-md border border-slate-200 flex-shrink-0 mr-4" alt="img">` 
-            : `<div class="w-12 h-12 bg-slate-100 rounded-md flex items-center justify-center text-slate-400 flex-shrink-0 mr-4"><span class="material-symbols-outlined text-xl">image</span></div>`;
+            ? `<img src="${imgUrl}" class="w-12 h-12 object-cover rounded-md border border-slate-200 flex-shrink-0 mr-4" alt="img">`: `<div class="w-12 h-12 bg-slate-100 rounded-md flex items-center justify-center text-slate-400 flex-shrink-0 mr-4"><span class="material-symbols-outlined text-xl">image</span></div>`;
 
-        // 🔥 NÂNG CẤP MẠNH CỦA TUI: HIỂN THỊ CÂU VÍ DỤ XUỐNG CẢ DANH SÁCH TỪ BÊN DƯỚI CHO ĐỒNG BỘ
         const exampleText = card.example || card.Example || "";
         const exampleHtml = exampleText !== "" ? `<p class="text-sm italic text-indigo-500 mt-2 bg-indigo-50/50 inline-block px-2 py-1 rounded">" ${escapeHtml(exampleText)} "</p>` : "";
 
@@ -272,7 +279,6 @@ export function renderTermList(set, handlers) {
             if (typeof window.editSingleCard === "function") {
                 const oldImg = card.imageUrl || card.ImageUrl || "";
                window.editSingleCard(card.id, card.term, card.definition, oldImg, card.example);
-                
             }
         };
 

@@ -74,22 +74,202 @@
       </button>
     </div>
   </header>
-  <div id="adminView" class="hidden max-w-6xl mx-auto px-4 py-8">
-    <h2 class="text-3xl font-bold text-slate-800 mb-6">User Account Management</h2>
-    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-      <table class="w-full text-left">
-        <thead class="bg-slate-50 border-b border-slate-200">
-          <tr>
-            <th class="px-6 py-4 font-semibold text-slate-700">ID</th>
-            <th class="px-6 py-4 font-semibold text-slate-700">Username</th>
-            <th class="px-6 py-4 font-semibold text-slate-700">Email</th>
-            <th class="px-6 py-4 font-semibold text-slate-700">Role</th>
-            <th class="px-6 py-4 font-semibold text-slate-700 text-right">Activity</th>
-          </tr>
-        </thead>
-        <tbody id="adminUserTableBody" class="divide-y divide-slate-100">
-          </tbody>
-      </table>
-    </div>
+ <div id="adminView" class="hidden fixed inset-0 z-50 bg-slate-50 flex font-sans">
+    
+   <aside class="w-64 bg-white border-r border-slate-200 flex flex-col shadow-sm">
+      <div class="h-16 flex items-center px-6 border-b border-slate-100">
+        <span class="text-2xl font-extrabold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">StudySet Admin</span>
+      </div>
+      
+      <nav class="flex-1 p-4 flex flex-col gap-2">
+        <button onclick="window.switchAdminView('view-dashboard', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-3 text-indigo-700 bg-indigo-50 rounded-xl font-bold transition-colors">
+          <span class="material-symbols-outlined">dashboard</span> Tổng quan
+        </button>
+        <button onclick="window.switchAdminView('view-users', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-xl font-medium transition-colors">
+          <span class="material-symbols-outlined">group</span> Quản lý User
+        </button>
+        <button onclick="window.switchAdminView('view-reports', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-xl font-medium transition-colors">
+          <span class="material-symbols-outlined">analytics</span> Báo cáo
+        </button>
+        
+        <hr class="border-slate-100 my-2">
+        
+        <button id="navLogoutBtn" class="w-full flex items-center gap-3 px-4 py-3 text-red-500 hover:bg-red-50 hover:text-red-600 rounded-xl font-medium transition-colors">
+          <span class="material-symbols-outlined">logout</span> Đăng xuất
+        </button>
+      </nav>
+
+      <div class="p-4 border-t border-slate-100 bg-slate-50/50">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold shadow-md">AT</div>
+          <div class="flex-1 text-left overflow-hidden">
+            <div class="text-sm font-bold text-slate-800 truncate">Admin Tính</div>
+            <div class="text-xs text-slate-500 truncate">System Admin</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col h-screen overflow-hidden relative">
+      
+      <header class="h-16 bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-8 sticky top-0 z-10">
+        <h1 id="adminTopbarTitle" class="text-xl font-bold text-slate-800">Dashboard Tổng Quan</h1>
+        
+      </header>
+
+      <div class="flex-1 p-8 overflow-y-auto">
+        
+        <div id="view-dashboard" class="admin-view flex flex-col gap-8">
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4 border-l-4 border-l-blue-500">
+              <div class="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600"><span class="material-symbols-outlined text-3xl">school</span></div>
+              <div><div class="text-sm font-bold text-slate-400 uppercase tracking-wider">Tổng Học Viên</div><div id="kpiTotalLearners" class="text-3xl font-extrabold text-slate-800">--</div></div>
+            </div>
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4 border-l-4 border-l-green-500">
+              <div class="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center text-green-600"><span class="material-symbols-outlined text-3xl">task_alt</span></div>
+              <div><div class="text-sm font-bold text-slate-400 uppercase tracking-wider">Trung Bình Thuộc</div><div id="kpiTotalMastered" class="text-3xl font-extrabold text-slate-800">--</div></div>
+            </div> 
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4 border-l-4 border-l-orange-500">
+              <div class="w-12 h-12 bg-orange-50 rounded-xl flex items-center justify-center text-orange-600"><span class="material-symbols-outlined text-3xl">local_fire_department</span></div>
+              <div><div class="text-sm font-bold text-slate-400 uppercase tracking-wider">Trung Bình Đang Ôn</div><div id="kpiTotalLearning" class="text-3xl font-extrabold text-slate-800">--</div></div>
+            </div>
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4 border-l-4 border-l-purple-500">
+              <div class="w-12 h-12 bg-purple-50 rounded-xl flex items-center justify-center text-purple-600"><span class="material-symbols-outlined text-3xl">database</span></div>
+              <div><div class="text-sm font-bold text-slate-400 uppercase tracking-wider">Tổng Từ</div><div id="kpiTotalCards" class="text-3xl font-extrabold text-slate-800">--</div></div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+              <h3 class="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><span class="material-symbols-outlined text-indigo-500">bar_chart</span> Phân Bổ Trình Độ (CEFR)</h3>
+              <div id="adminLevelChart" class="flex flex-col gap-4"></div>
+            </div>
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 flex flex-col">
+              <h3 class="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><span class="material-symbols-outlined text-amber-500">trophy</span> Bảng Xếp Hạng Top 5</h3>
+              <div id="adminTopLearners" class="flex-1 flex flex-col gap-3"></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="view-users" class="admin-view hidden flex-col gap-8">
+          
+          <div>
+            <h2 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2"><span class="material-symbols-outlined text-indigo-600">shield_person</span> Quản Trị Viên & Giáo Viên</h2>
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+              <table class="w-full text-left">
+                <thead class="bg-slate-50 border-b border-slate-200">
+                  <tr>
+                    <th class="px-6 py-4 font-semibold text-slate-600 text-sm uppercase">STT</th>
+                    <th class="px-6 py-4 font-semibold text-slate-600 text-sm uppercase">Username</th>
+                    <th class="px-6 py-4 font-semibold text-slate-600 text-sm uppercase">Role</th>
+                    
+                    <th class="px-6 py-4 font-semibold text-slate-600 text-sm uppercase text-right">Activity</th>
+                  </tr>
+                </thead>
+                <tbody id="adminStaffTableBody" class="divide-y divide-slate-100"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div style="background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); padding: 24px; border: 1px solid #e2e8f0;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+              <h2 style="font-size: 22px; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 10px;">
+                <span class="material-symbols-outlined" style="color: #16a34a; font-size: 26px;">school</span> Danh Sách Học Viên
+              </h2>
+              <div style="display: flex; gap: 12px; align-items: center;">
+                <div style="position: relative;">
+                  <span class="material-symbols-outlined" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 18px;">search</span>
+                  <input type="text" id="adminRealSearchInput" oninput="window.renderAdminUsersTable()" placeholder="Tìm kiếm học viên..." style="padding: 9px 12px 9px 36px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; outline: none; width: 220px; color: #475569;">
+                </div>
+                <select id="adminSortLearnerSelect" onchange="window.renderAdminUsersTable()" style="padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; outline: none; background: #fff; cursor: pointer; color: #475569;">
+                  <option value="level-desc">👑 Trình độ: Cao -> Thấp</option>
+                  <option value="level-asc">🌱 Trình độ: Thấp -> Cao</option>
+                  <option value="name-asc">🔤 Tên: A -> Z</option>
+                </select>
+              </div>
+            </div>
+            <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+              <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                <thead style="background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+                  <tr>
+                    <th style="padding: 16px 20px; font-weight: 600; color: #64748b; font-size: 12px; text-transform: uppercase;">STT</th>
+                    <th style="padding: 16px 20px; font-weight: 600; color: #64748b; font-size: 12px; text-transform: uppercase;">USERNAME</th>
+                    <th style="padding: 16px 20px; font-weight: 600; color: #64748b; font-size: 12px; text-transform: uppercase; text-align: center;">Email</th>
+                    <th style="padding: 16px 20px; font-weight: 600; color: #64748b; font-size: 12px; text-transform: uppercase;">RANK</th>
+                    <th style="padding: 16px 20px; font-weight: 600; color: #64748b; font-size: 12px; text-transform: uppercase; text-align: right;">ACTIVITY</th>
+                  </tr>
+                </thead>
+                <tbody id="user-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div id="view-reports" class="admin-view hidden flex-col gap-6">
+          <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+            
+            <div class="flex items-center gap-4 mb-6 pb-6 border-b border-slate-100">
+              <div class="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
+                <span class="material-symbols-outlined text-2xl">analytics</span>
+              </div>
+              <div>
+                <h2 class="text-lg font-bold text-slate-800">Trung Tâm Xuất Báo Cáo Dữ Liệu</h2>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              
+              <div class="border border-slate-200 rounded-2xl p-6 bg-slate-50/50 hover:shadow-sm transition-all">
+                <h3 class="text-base font-bold text-slate-800 mb-2 flex items-center gap-2">
+                  <span class="material-symbols-outlined text-green-600 text-xl">school</span> Báo Cáo Tiến Độ Học Viên
+                </h3>
+                <p class="text-xs text-slate-500 mb-6">Tải danh sách chi tiết học viên bao gồm tài khoản, email, tổng số từ đã thuộc, đang ôn luyện và mức xếp hạng CEFR hiện tại.</p>
+                <button onclick="window.exportUsersToCSV()" class="w-full flex justify-center items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-4 rounded-xl transition-colors shadow-sm text-sm">
+                  <span class="material-symbols-outlined text-sm">download</span> Tải Excel Báo Cáo Học Viên
+                </button>
+              </div>
+
+              <div class="border border-slate-200 rounded-2xl p-6 bg-slate-50/50 hover:shadow-sm transition-all">
+                <h3 class="text-base font-bold text-slate-800 mb-2 flex items-center gap-2">
+                  <span class="material-symbols-outlined text-purple-600 text-xl">shield_person</span> Thống Kê Nhân Sự Hệ Thống
+                </h3>
+                <p class="text-xs text-slate-500 mb-6">Trích xuất danh sách nhân sự tham gia quản trị hệ thống bao gồm tài khoản Quản trị viên (Admin) và Biên tập viên nội dung (Editor).</p>
+                <button onclick="window.exportStaffToCSV()" class="w-full flex justify-center items-center gap-2 bg-white hover:bg-slate-100 text-slate-700 font-bold py-2.5 px-4 rounded-xl transition-colors border border-slate-200 shadow-sm text-sm">
+                  <span class="material-symbols-outlined text-sm">download</span> Tải Thống Kê Nhân Sự
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
   </div>
+  <div id="progressModal" class="hidden fixed inset-0 z-[100] bg-slate-900/40 backdrop-blur-sm items-center justify-center">
+      <div class="bg-white p-8 rounded-2xl w-full max-w-md shadow-2xl border border-slate-100">
+        <h3 id="progressUserName" class="text-xl font-bold text-slate-800 mb-6 border-b border-slate-100 pb-4">Tiến độ của: </h3>
+        
+        <div class="flex justify-between items-center mb-4">
+            <span class="text-slate-600 font-medium">Cấp độ:</span> <span id="progLevel"></span>
+        </div>
+        <div class="flex justify-between items-center mb-3">
+            <span class="text-slate-600 font-medium">Đã thuộc:</span> <span id="progMastered" class="text-green-600 font-bold text-lg">0 từ</span>
+        </div>
+        <div class="flex justify-between items-center mb-3">
+            <span class="text-slate-600 font-medium">Đang học:</span> <span id="progLearning" class="text-orange-500 font-bold text-lg">0 từ</span>
+        </div>
+        <div class="flex justify-between items-center mb-4">
+            <span class="text-slate-600 font-medium">Chưa học:</span> <span id="progRemaining" class="text-slate-400 font-bold text-lg">0 từ</span>
+        </div>
+        
+        <div class="border-t border-dashed border-slate-200 my-4 pt-4 flex justify-between items-center">
+            <span class="text-slate-800 font-bold">Tổng hệ thống:</span> <span id="progTotal" class="text-slate-800 font-bold text-lg">0 từ</span>
+        </div>
+        
+        <div class="mt-6 text-right">
+          <button onclick="document.getElementById('progressModal').classList.add('hidden'); document.getElementById('progressModal').classList.remove('flex')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-6 py-2 rounded-lg font-bold transition-colors">Đóng lại</button>
+        </div>
+      </div>
+    </div>
 </section>
+
