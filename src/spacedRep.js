@@ -222,29 +222,52 @@ export function estimateStudyTime(cardCount, secondsPerCard = 10) {
  * @param {Object} sm2Result - Kết quả từ hàm calculateSM2
  */
 export async function saveReviewToDatabase(flashcardId, sm2Result) {
-    const user = JSON.parse(localStorage.getItem('user'));
+    // 1. Lấy thông tin user
+    const userStr = localStorage.getItem('quizlet_user');
+    if (!userStr) return;
+
+    const user = JSON.parse(userStr);
     if (!user || !user.id) return;
 
     try {
+        // 2. Gửi API lưu tiến độ học tập
         const response = await fetch('https://localhost:7077/api/StudyProgresses/review', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 userId: user.id,
                 flashcardId: flashcardId,
-                // Gửi các thông số đã tính toán để C# lưu đúng vào bảng StudyProgresses
                 easeFactor: sm2Result.ease,
                 interval: sm2Result.interval,
                 repetitions: sm2Result.repetitions,
                 nextReviewDate: new Date(sm2Result.dueAt).toISOString(),
-                grade: 3 // Mặc định hoặc lấy từ grade người dùng chọn
+                grade: sm2Result.grade || 3 // Nếu sm2Result có gửi điểm thì lấy, không thì mặc định là 3
             })
         });
 
         if (!response.ok) throw new Error('Không thể lưu tiến độ lên server');
         
         console.log("✅ Đã đồng bộ tiến độ SM-2 với Database!");
+        
+        // 3. Gọi API lưu log hoạt động
+        try {
+            await fetch("https://localhost:7077/api/ActivityLogs", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    userId: user.id,
+                    actionText: "vừa ôn tập xong 1 thẻ từ vựng.",
+                    icon: "school",
+                    color: "text-blue-500",
+                    bgColor: "bg-blue-100"
+                })
+            });
+        } catch (logErr) {
+            console.error("Lỗi ghi log rác rưởi:", logErr);
+        }
+
     } catch (error) {
-        console.error("❌ Lỗi đồng bộ:", error);
+        // 🔥 LỖI Ở ĐÂY: Nãy ông bị thiếu mất khối catch này nè! 🔥
+        console.error("❌ Lỗi đồng bộ tiến độ:", error);
     }
 }

@@ -19,6 +19,7 @@ export function setupEditorListeners() {
                 const result = await response.json();
                 const newSetId = result.data.id.toString();
                 hideModal("createSetModal");
+                if (window.logSystemActivity) window.logSystemActivity(`vừa tạo bộ từ vựng mới: "${name}".`, "library_add", "text-purple-500", "bg-purple-100");
                 await fetchStudySetsFromSQL();
                 if(window.navigateToSetView) window.navigateToSetView(newSetId);
             } catch (err) {
@@ -46,6 +47,7 @@ export function setupEditorListeners() {
                 });
                 if (!response.ok) return alert("Lưu thẻ thất bại!");
                 hideModal("addCardModal");
+                if (window.logSystemActivity) window.logSystemActivity(`vừa thêm thẻ "${term}" vào bộ.`, "post_add", "text-blue-500", "bg-blue-100");
                 document.getElementById("addCardTermInput").value = "";
                 document.getElementById("addCardDefInput").value = "";
                 if (imageInputEl) imageInputEl.value = "";
@@ -76,7 +78,8 @@ export function setupEditorListeners() {
             });
             if (response.ok) {
                 document.getElementById("editCardModal").classList.add("hidden");
-                await fetchStudySetsFromSQL();
+                if (window.logSystemActivity) window.logSystemActivity(`vừa cập nhật thẻ "${newTerm}".`, "edit_note", "text-amber-500", "bg-amber-100");
+              await fetchStudySetsFromSQL();
                 if(window.navigateToSetView) window.navigateToSetView(activeSetId);
             } else {
                 alert("Lỗi: C# không chịu lưu cập nhật!");

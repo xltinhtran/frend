@@ -12,7 +12,20 @@ export function setupAuthListeners() {
             });
             const data = await response.json();
             if (response.ok) {
+                // 1. Lưu session đăng nhập
                 localStorage.setItem("quizlet_user", JSON.stringify(data));
+                
+                // 2. 🔥 BẮN LOG HOẠT ĐỘNG LÊN DATABASE Ở ĐÂY 🔥
+                if (window.logSystemActivity) {
+                    window.logSystemActivity(
+                        "vừa đăng nhập vào hệ thống.", 
+                        "login", 
+                        "text-green-500", 
+                        "bg-green-100"
+                    );
+                }
+
+                // 3. Thông báo và tải lại trang
                 alert("Login successful ! Hello " + data.username);
                 location.reload();
             } else {
@@ -22,7 +35,8 @@ export function setupAuthListeners() {
             alert("Lỗi kết nối Backend PHP! Coi lại XAMPP bật chưa?");
         }
     });
-
+    
+    // ... (Các phần code bên dưới của form Register ông cứ giữ nguyên nhé)
     document.getElementById("showRegisterBtn")?.addEventListener("click", (e) => {
         e.preventDefault();
         document.getElementById("loginForm").classList.add("hidden");
@@ -59,6 +73,10 @@ export function setupAuthListeners() {
             });
             if (response.ok) {
                 alert("Đăng ký thành công qua hệ thống PHP! Quay lại đăng nhập thôi!");
+                
+                // 🔥 LOG ĐĂNG KÝ
+                if (window.logSystemActivity) window.logSystemActivity("vừa đăng ký tài khoản mới thành công.", "person_add", "text-emerald-500", "bg-emerald-100");
+                
                 document.getElementById("showLoginBtn").click();
                 document.getElementById("registerForm").reset();
             } else {

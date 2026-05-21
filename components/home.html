@@ -150,6 +150,39 @@
               <div id="adminTopLearners" class="flex-1 flex flex-col gap-3"></div>
             </div>
           </div>
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+    
+   <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 col-span-1 flex flex-col h-full">
+        <div class="flex items-start justify-between mb-4">
+            <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-slate-400 text-2xl">library_books</span>
+                <h3 class="text-base font-bold text-slate-800 leading-tight">Bộ thẻ phổ<br>biến nhất</h3>
+                <span class="text-[10px] font-bold text-green-600 bg-green-100 border border-green-200 px-1.5 py-0.5 rounded self-start mt-1">Mới</span>
+            </div>
+            
+            <button id="btnViewAllSets" onclick="window.toggleViewAllSets()" class="px-3 py-1.5 text-sm font-semibold text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-50 shadow-sm transition-colors flex items-center gap-1 shrink-0">
+                Xem tất cả <span class="material-symbols-outlined text-sm">arrow_forward</span>
+            </button>
+        </div>
+        
+        <div id="adminPopularSets" class="flex flex-col flex-1 overflow-y-auto pr-2 max-h-[440px]">
+            <p class="text-slate-400 text-sm italic text-center py-4">Đang tải dữ liệu...</p>
+        </div>
+    </div>
+
+    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 lg:col-span-2 flex flex-col h-full">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <span class="material-symbols-outlined text-green-500">history_toggle_off</span> Hoạt Động Mới Nhất
+            </h3>
+            <input type="date" id="logDateFilter" class="border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none cursor-pointer hover:bg-slate-50 transition-colors">
+        </div>
+
+        <div id="adminActivityLog" class="max-h-[500px] overflow-y-auto pr-2 flex flex-col gap-4 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-200 before:to-transparent">
+            <p class="text-slate-400 text-sm italic text-center py-4">Đang tải dữ liệu...</p>
+        </div>
+    </div>
+</div>
         </div>
 
         <div id="view-users" class="admin-view hidden flex-col gap-8">
@@ -202,6 +235,13 @@
                 </thead>
                 <tbody id="user-table-body"></tbody>
               </table>
+              <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                </table>
+            </div>
+
+            <div id="learnerPagination" class="flex justify-between items-center px-6 py-4 border-t border-slate-100 bg-white rounded-b-2xl">
+            </div>
             </div>
           </div>
         </div>

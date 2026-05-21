@@ -79,7 +79,8 @@ export async function handleDeleteCurrentSet() {
     }
 
     alert("Xóa thành công!");
-    window.location.hash = "#home";
+    if (window.logSystemActivity) window.logSystemActivity("vừa xóa hẳn một bộ từ vựng.", "delete_forever", "text-red-600", "bg-red-200");
+  window.location.hash = "#home";
     window.dispatchEvent(new Event("hashchange"));
   } catch (err) {
     console.error(err);
@@ -162,7 +163,9 @@ window.deleteSingleCard = async function(cardId) {
         });
         if (response.ok) {
             await fetchStudySetsFromSQL(); 
+            if (window.logSystemActivity) window.logSystemActivity("vừa xóa một thẻ từ vựng.", "delete", "text-red-500", "bg-red-100");
             const activeSetId = getState().activeSetId;
+            
             if (window.navigateToSetView) window.navigateToSetView(activeSetId); 
         } else {
             alert("Lỗi: Backend C# từ chối xóa!");

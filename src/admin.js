@@ -186,6 +186,15 @@ window.loadAdminUsers = async function() {
         const searchInput = document.getElementById("adminRealSearchInput");
         const sortSelect = document.getElementById("adminSortLearnerSelect");
         const exitBtn = document.getElementById("exitAdminBtn");
+        // XỬ LÝ LỌC HOẠT ĐỘNG THEO NGÀY
+        const logDateFilter = document.getElementById("logDateFilter");
+        if (logDateFilter && !logDateFilter.dataset.listener) {
+            logDateFilter.addEventListener("change", (e) => {
+                const selectedDate = e.target.value; // Trả ra chuỗi định dạng YYYY-MM-DD
+                window.renderActivityLog(selectedDate); // Kích hoạt kéo data ngày đó về
+            });
+            logDateFilter.dataset.listener = "true";
+        }
         
         // XỬ LÝ TAB ĐĂNG XUẤT
         const navLogoutBtn = document.getElementById("navLogoutBtn");
@@ -197,8 +206,12 @@ window.loadAdminUsers = async function() {
             navLogoutBtn.dataset.listener = "true";
         }
 
+      // TRONG HÀM window.loadAdminUsers
         if (searchInput && !searchInput.dataset.listener) {
-            searchInput.addEventListener("input", () => window.renderAdminDashboard());
+            searchInput.addEventListener("input", () => {
+                window.currentLearnerPage = 1; // BẤM TÌM KIẾM LÀ TỰ RESET VỀ TRANG 1
+                window.renderAdminDashboard();
+            });
             searchInput.dataset.listener = "true";
         }
         if (sortSelect && !sortSelect.dataset.listener) {
@@ -261,6 +274,20 @@ function getRankInfo(total) {
 }
 
 // HÀM RENDER TỔNG HỢP: BIỂU ĐỒ, TOP 5 VÀ 2 BẢNG DANH SÁCH
+// ==========================================
+// CẤU HÌNH PHÂN TRANG (MỚI)
+// ==========================================
+window.currentLearnerPage = 1;
+window.learnersPerPage = 5; // Ông thích hiển thị bao nhiêu người 1 trang thì sửa số này nhé
+
+window.changeLearnerPage = function(page) {
+    window.currentLearnerPage = page;
+    window.renderAdminDashboard();
+};
+
+// ==========================================
+// HÀM RENDER TỔNG HỢP (ĐÃ NÂNG CẤP PHÂN TRANG)
+// ==========================================
 window.renderAdminDashboard = function() {
     if (!window.cachedAdminUsers.length) return;
 
@@ -272,35 +299,27 @@ window.renderAdminDashboard = function() {
     const VIPUsers = window.cachedAdminUsers.filter(u => (u.role || "").toLowerCase() !== "learner");
     let learners = window.cachedAdminUsers.filter(u => (u.role || "").toLowerCase() === "learner");
 
-    // BIỂU ĐỒ PHÂN BỔ (Tính theo Từ đã thuộc)
+    // 1. BIỂU ĐỒ PHÂN BỔ & TOP 5 (Giữ nguyên logic cũ của ông)
     const levelCounts = { "C2": 0, "C1": 0, "B2": 0, "B1": 0, "A2": 0, "A1": 0, "A0": 0 };
-    learners.forEach(l => {
-        const rank = getRankInfo(l.masteredWords || 0);
-        levelCounts[rank.id]++;
-    });
-    
+    learners.forEach(l => { levelCounts[getRankInfo(l.masteredWords || 0).id]++; });
     const maxCount = Math.max(...Object.values(levelCounts), 1);
+    
     const chartHtml = Object.keys(levelCounts).map(key => {
         const count = levelCounts[key];
         if (count === 0) return ""; 
-        
         const rankInfo = [500, 350, 200, 100, 40, 10, 0].map(getRankInfo).find(r => r.id === key);
-        const widthPct = (count / maxCount) * 100;
-        
         return `
             <div class="flex items-center gap-4 text-sm">
                 <div class="w-16 font-bold text-slate-600 text-right">${key}</div>
                 <div class="flex-1 h-4 bg-slate-100 rounded-full overflow-hidden">
-                    <div class="h-full rounded-full ${rankInfo.barColor} transition-all duration-1000" style="width: ${widthPct}%"></div>
+                    <div class="h-full rounded-full ${rankInfo.barColor} transition-all duration-1000" style="width: ${(count / maxCount) * 100}%"></div>
                 </div>
                 <div class="w-10 text-slate-500 font-medium">${count} hs</div>
-            </div>
-        `;
+            </div>`;
     }).join("");
     const adminLevelChart = document.getElementById("adminLevelChart");
     if(adminLevelChart) adminLevelChart.innerHTML = chartHtml || "<p class='text-slate-400 italic'>Chưa có dữ liệu học tập.</p>";
 
-    // TOP 5 LEADERBOARD (Xếp hạng theo Từ đã thuộc)
     const top5Learners = [...learners].sort((a, b) => (b.masteredWords || 0) - (a.masteredWords || 0)).slice(0, 5);
     const top5Html = top5Learners.map((u, i) => {
         const rank = getRankInfo(u.masteredWords || 0);
@@ -315,30 +334,37 @@ window.renderAdminDashboard = function() {
                     </div>
                 </div>
                 <span class="px-2 py-1 rounded-lg text-xs font-bold border ${rank.color}">${rank.badge}</span>
-            </div>
-        `;
+            </div>`;
     }).join("");
     const adminTopLearners = document.getElementById("adminTopLearners");
     if(adminTopLearners) adminTopLearners.innerHTML = top5Html || "<p class='text-slate-400 italic'>Chưa có bảng xếp hạng.</p>";
 
-    // TÌM KIẾM & RENDER BẢNG
+    // 2. TÌM KIẾM & SẮP XẾP HỌC VIÊN
     if (searchTerm) {
         learners = learners.filter(u => (u.username || "").toLowerCase().includes(searchTerm) || (u.email || "").toLowerCase().includes(searchTerm));
     }
     
-    // ĐÃ FIX: Lọc và sắp xếp bảng theo Từ đã thuộc (masteredWords)
-    if (sortType === "name-asc") {
-        learners.sort((a, b) => (a.username || "").localeCompare(b.username || ""));
-    } else if (sortType === "level-desc") {
-        learners.sort((a, b) => (b.masteredWords || 0) - (a.masteredWords || 0));
-    } else if (sortType === "level-asc") {
-        learners.sort((a, b) => (a.masteredWords || 0) - (b.masteredWords || 0));
-    }
+    if (sortType === "name-asc") learners.sort((a, b) => (a.username || "").localeCompare(b.username || ""));
+    else if (sortType === "level-desc") learners.sort((a, b) => (b.masteredWords || 0) - (a.masteredWords || 0));
+    else if (sortType === "level-asc") learners.sort((a, b) => (a.masteredWords || 0) - (b.masteredWords || 0));
 
-    const getAvatar = (name) => (name ? name.substring(0, 2).toUpperCase() : "US");
+    // ==========================================
+    // 3. LOGIC CẮT MẢNG ĐỂ PHÂN TRANG Ở ĐÂY
+    // ==========================================
+    const totalLearners = learners.length;
+    const totalPages = Math.ceil(totalLearners / window.learnersPerPage) || 1;
 
-    // Render Bảng VIP
+    // Ép trang hiện tại không được lố quá tổng số trang
+    if (window.currentLearnerPage > totalPages) window.currentLearnerPage = totalPages;
+    if (window.currentLearnerPage < 1) window.currentLearnerPage = 1;
+
+    const startIndex = (window.currentLearnerPage - 1) * window.learnersPerPage;
+    const endIndex = startIndex + window.learnersPerPage;
+    const paginatedLearners = learners.slice(startIndex, endIndex); // Lấy đúng số người của trang hiện tại
+
+    // 4. RENDER BẢNG VIP
     const staffTbody = document.getElementById("adminStaffTableBody");
+    const getAvatar = (name) => (name ? name.substring(0, 2).toUpperCase() : "US");
     if (staffTbody) {
         staffTbody.innerHTML = VIPUsers.map((u, i) => {
             const role = (u.role || "").toLowerCase();
@@ -359,21 +385,20 @@ window.renderAdminDashboard = function() {
                     <td class="px-6 py-4 text-right">
                         ${role === "admin" ? '<span class="text-slate-400 text-sm">Protected</span>' : `<button onclick="window.deleteUser(${u.id})" class="text-red-500 hover:text-red-700 text-sm font-semibold">Xóa quyền</button>`}
                     </td>
-                </tr>
-            `;
+                </tr>`;
         }).join("");
     }
 
-    // Render Bảng Học Viên
+    // 5. RENDER BẢNG HỌC VIÊN (Vẽ danh sách đã bị cắt)
     const learnerTbody = document.getElementById("user-table-body");
     if (learnerTbody) {
-        learnerTbody.innerHTML = learners.map((u, i) => {
-            // ĐÃ FIX: Rank trong bảng học viên cũng tính bằng từ đã thuộc
+        learnerTbody.innerHTML = paginatedLearners.map((u, i) => {
             const rank = getRankInfo(u.masteredWords || 0);
+            const realSTT = startIndex + i + 1; // STT hiển thị đúng số thứ tự tuyệt đối
             
             return `
                 <tr class="hover:bg-slate-50 border-b border-slate-100 transition-colors">
-                    <td class="px-6 py-4 font-bold text-slate-500">${i + 1}</td>
+                    <td class="px-6 py-4 font-bold text-slate-500">${realSTT}</td>
                     <td class="px-6 py-4 font-semibold text-slate-800">${u.username}</td>
                     <td class="px-6 py-4 font-medium text-slate-500">${u.email || "N/A"}</td>
                     <td class="px-6 py-4">
@@ -385,11 +410,39 @@ window.renderAdminDashboard = function() {
                             <button onclick="window.deleteUser(${u.id})" class="text-red-500 hover:text-red-700 font-bold text-sm transition-colors">Xóa</button>
                         </div>
                     </td>
-                </tr>
-            `;
+                </tr>`;
         }).join("");
         
         if (learners.length === 0) learnerTbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-400">Không tìm thấy học viên!</td></tr>`;
+    }
+
+    // 6. RENDER GIAO DIỆN NÚT PHÂN TRANG (Dưới đáy bảng)
+    const paginationContainer = document.getElementById("learnerPagination");
+    if (paginationContainer) {
+        if (totalLearners === 0) {
+            paginationContainer.innerHTML = "";
+            return;
+        }
+
+        let pageButtons = "";
+        for (let p = 1; p <= totalPages; p++) {
+            pageButtons += `<button onclick="window.changeLearnerPage(${p})" class="px-3 py-1.5 text-sm rounded-lg ${p === window.currentLearnerPage ? 'bg-indigo-600 text-white font-bold shadow-sm' : 'text-slate-600 hover:bg-slate-100 font-medium'} mx-1 transition-colors">${p}</button>`;
+        }
+
+        paginationContainer.innerHTML = `
+            <div class="text-sm text-slate-500">
+                Đang hiển thị <span class="font-bold text-slate-700">${startIndex + 1}</span> - <span class="font-bold text-slate-700">${Math.min(endIndex, totalLearners)}</span> trong tổng số <span class="font-bold text-slate-700">${totalLearners}</span> học viên
+            </div>
+            <div class="flex items-center border border-slate-200 rounded-lg p-1">
+                <button onclick="window.changeLearnerPage(${window.currentLearnerPage - 1})" class="px-2 py-1.5 text-slate-500 hover:bg-slate-100 rounded-md disabled:opacity-30 disabled:hover:bg-transparent transition-colors" ${window.currentLearnerPage === 1 ? 'disabled' : ''}>
+                    <span class="material-symbols-outlined text-sm font-bold">arrow_back_ios_new</span>
+                </button>
+                ${pageButtons}
+                <button onclick="window.changeLearnerPage(${window.currentLearnerPage + 1})" class="px-2 py-1.5 text-slate-500 hover:bg-slate-100 rounded-md disabled:opacity-30 disabled:hover:bg-transparent transition-colors" ${window.currentLearnerPage === totalPages ? 'disabled' : ''}>
+                    <span class="material-symbols-outlined text-sm font-bold">arrow_forward_ios</span>
+                </button>
+            </div>
+        `;
     }
 };
 
@@ -509,4 +562,203 @@ window.exportStaffToCSV = function() {
 
     const today = new Date().toISOString().slice(0, 10);
     window.downloadCSVFile(csvContent, `Danh_Sach_Nhan_Su_He_Thong_${today}.csv`);
+};
+// GHI ĐÈ BẰNG HÀM MỚI CHIA NGÀY NÀY NHÉ:
+window.renderActivityLog = async function(filterDate = "") {
+    const logContainer = document.getElementById("adminActivityLog");
+    if (!logContainer) return;
+
+    // Giữ khung cố định chiều cao tránh dài trang
+    logContainer.classList.add("max-h-[500px]", "overflow-y-auto", "overflow-x-hidden", "pr-2");
+
+    try {
+        // TỰ ĐỘNG NỐI THAM SỐ NGÀY VÀO API NẾU CÓ CHỌN
+        let url = "https://localhost:7077/api/ActivityLogs";
+        if (filterDate) {
+            url += `?date=${filterDate}`;
+        }
+
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("Không thể tải nhật ký");
+        const logs = await res.json();
+
+        if (logs.length === 0) {
+            logContainer.innerHTML = `<p class="text-slate-400 text-sm italic text-center py-4">Không có hoạt động nào trong ngày này</p>`;
+            return;
+        }
+
+        // 1. Thuật toán gom nhóm theo ngày
+        const groupedLogs = logs.reduce((acc, log) => {
+            const dateObj = new Date(log.createdAt);
+            const today = new Date();
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+
+            let dateLabel = dateObj.toLocaleDateString("vi-VN");
+            if (dateObj.toDateString() === today.toDateString()) dateLabel = "Hôm nay";
+            else if (dateObj.toDateString() === yesterday.toDateString()) dateLabel = "Hôm qua";
+
+            if (!acc[dateLabel]) acc[dateLabel] = [];
+            acc[dateLabel].push(log);
+            return acc;
+        }, {});
+
+        // 2. Render giao diện có thanh phân cách
+        let html = '';
+        for (const [date, dailyLogs] of Object.entries(groupedLogs)) {
+            html += `
+                <div class="relative z-10 flex items-center justify-center my-4">
+                    <span class="bg-indigo-50 text-indigo-600 text-xs font-bold px-3 py-1 rounded-full border border-indigo-100 shadow-sm">
+                        ${date}
+                    </span>
+                </div>
+            `;
+            
+            html += dailyLogs.map(log => {
+                const timeStr = new Date(log.createdAt).toLocaleTimeString("vi-VN", { hour: '2-digit', minute: '2-digit' });
+                return `
+                <div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active mb-4">
+                    <div class="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white ${log.bgColor || 'bg-slate-100'} ${log.color || 'text-slate-500'} shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
+                        <span class="material-symbols-outlined text-sm">${log.icon || 'history'}</span>
+                    </div>
+                    <div class="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] bg-white p-3 rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-xs font-bold text-slate-400"><span class="material-symbols-outlined text-[10px]">schedule</span> ${timeStr}</span>
+                        </div>
+                        <div class="text-sm text-slate-700 leading-snug"><strong>${log.username}</strong> ${log.actionText}</div>
+                    </div>
+                </div>
+                `;
+            }).join("");
+        }
+        logContainer.innerHTML = html;
+    } catch (err) {
+        logContainer.innerHTML = `<p class="text-red-400 text-xs italic text-center py-4">Lỗi tải dữ liệu máy chủ!</p>`;
+    }
+};
+
+// Gắn hàm renderActivityLog vào luồng chạy chung của Dashboard
+const originalRenderDashboard = window.renderAdminDashboard;
+window.renderAdminDashboard = function() {
+    if (originalRenderDashboard) originalRenderDashboard();
+    window.renderActivityLog(); 
+};
+// Hàm gửi log hoạt động lên SQL Server
+window.logSystemActivity = async function(actionText, icon, color, bgColor) {
+    const userStr = localStorage.getItem("quizlet_user");
+    if (!userStr) return; // Chưa đăng nhập thì không lưu log
+    
+    const user = JSON.parse(userStr);
+    try {
+        await fetch("https://localhost:7077/api/ActivityLogs", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                userId: user.id,
+                actionText: actionText,
+                icon: icon || "star",
+                color: color || "text-slate-500",
+                bgColor: bgColor || "bg-slate-100"
+            })
+        });
+    } catch (e) {
+        console.error("Lỗi không lưu được log:", e);
+    }
+};
+// Biến lưu trạng thái đang "Xem tất cả" hay "Thu gọn"
+window.isViewAllSets = false;
+
+// Hàm kích hoạt khi bấm nút "Xem tất cả"
+window.toggleViewAllSets = function() {
+    window.isViewAllSets = !window.isViewAllSets; // Đảo trạng thái công tắc
+    window.renderPopularSets(); // Yêu cầu vẽ lại bảng
+};
+
+// ============================================================
+// HÀM RENDER BỘ THẺ PHỔ BIẾN (TÍNH % THEO SỐ LƯỢNG NGƯỜI HỌC)
+// ============================================================
+window.renderPopularSets = async function() {
+    const container = document.getElementById("adminPopularSets");
+    if (!container) return;
+
+    try {
+        const res = await fetch("https://localhost:7077/api/StudySets");
+        let sets = await res.json();
+        
+        if (!sets || sets.length === 0) {
+            container.innerHTML = `<p class="text-slate-400 text-sm italic text-center mt-4">Chưa có bộ thẻ nào.</p>`;
+            return;
+        }
+
+        // 1. SẮP XẾP: Bộ nào nhiều người học nhất (learnerCount lớn nhất) xếp lên đầu, chưa ai học về cuối
+        sets.sort((a, b) => (b.learnerCount || 0) - (a.learnerCount || 0));
+
+        // Cập nhật trạng thái nút Xem tất cả / Thu gọn
+        const btn = document.getElementById("btnViewAllSets");
+        if (btn) {
+            btn.innerHTML = window.isViewAllSets 
+                ? `Thu gọn <span class="material-symbols-outlined text-sm">expand_less</span>`
+                : `Xem tất cả <span class="material-symbols-outlined text-sm">arrow_forward</span>`;
+        }
+
+        // Nếu không bật "Xem tất cả", mặc định chỉ hiện Top 5
+        if (!window.isViewAllSets) {
+            sets = sets.slice(0, 5);
+        }
+        
+        // 2. LẤY MỐC 100%: Số lượng người học của bộ đứng TOP 1
+        const maxLearners = (sets[0].learnerCount && sets[0].learnerCount > 0) ? sets[0].learnerCount : 1;
+
+        const html = sets.map((set, index) => {
+            const currentLearners = set.learnerCount || 0;
+            
+            // 3. THUẬT TOÁN TÍNH % THEO NGƯỜI HỌC: (Số người học bộ này / Số người học bộ Top 1) * 100
+            let percent = Math.round((currentLearners / maxLearners) * 100);
+            
+            // Đổi màu sắc linh hoạt theo độ hot của bộ thẻ
+            let colorClass = "bg-indigo-600"; // Phổ biến nhất (Full 100%)
+            if (percent <= 60 && percent > 0) colorClass = "bg-teal-600"; // Trung bình
+            if (percent === 0) colorClass = "bg-slate-200"; // Chưa ai học
+            
+            // Đổ icon huy chương cho Top 3 bộ hot nhất
+            let rankIcon = "";
+            if (index === 0 && currentLearners > 0) rankIcon = "🥇 ";
+            else if (index === 1 && currentLearners > 0) rankIcon = "🥈 ";
+            else if (index === 2 && currentLearners > 0) rankIcon = "🥉 ";
+            else rankIcon = `<span class="text-slate-300 font-bold ml-1 mr-2">${index + 1}.</span>`;
+
+            return `
+                <div class="flex items-center justify-between py-3 border-b border-slate-100 last:border-0 group cursor-pointer">
+                    <div class="w-1/2 pr-2 flex items-center">
+                        ${rankIcon}
+                        <h4 class="text-[15px] text-slate-700 truncate group-hover:text-indigo-600 transition-colors" title="${set.title}">
+                            ${set.title} 
+                            <span class="text-xs text-slate-400 font-normal ml-1">(${currentLearners} người học)</span>
+                        </h4>
+                    </div>
+                    <div class="w-1/3 flex items-center px-2">
+                        <div class="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                            <div class="h-full rounded-full ${colorClass} transition-all duration-1000" style="width: ${percent}%"></div>
+                        </div>
+                    </div>
+                    <div class="w-12 text-right">
+                        <span class="text-sm ${currentLearners === 0 ? 'text-slate-400 italic' : 'text-slate-600 font-medium'}">${percent}%</span>
+                    </div>
+                </div>
+            `;
+        }).join("");
+
+        container.innerHTML = html;
+
+    } catch (error) {
+        container.innerHTML = `<p class="text-red-400 text-xs italic text-center mt-4">Lỗi kết nối máy chủ thống kê bộ thẻ!</p>`;
+    }
+};
+
+// 🔥 SỬA LỖI Ở ĐÂY: GỌI HÀM KHI LOAD DASHBOARD 🔥
+const originalRenderDashboardUI = window.renderAdminDashboard;
+window.renderAdminDashboard = function() {
+    if (originalRenderDashboardUI) originalRenderDashboardUI();
+    if (window.renderActivityLog) window.renderActivityLog(); 
+    if (window.renderPopularSets) window.renderPopularSets(); // <-- Nãy ông thiếu cái dòng quan trọng này nên nó không nạp data đó!
 };

@@ -81,8 +81,18 @@ window.navigateToSetView = function(setId) {
 // ==========================================
 // KHỞI ĐỘNG (ĐÃ FIX LỖI MÀN HÌNH TRẮNG)
 // ==========================================
+// TRONG HÀM initApp() CỦA FILE app.js
 async function initApp() {
   console.log("StudySet đang khởi tạo...");
+  
+  // 1. Xin quyền thông báo (Đặt ở đầu để đảm bảo trình duyệt đã xin quyền xong)
+  if ("Notification" in window) {
+      if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+          await Notification.requestPermission();
+      }
+  }
+
+  // 2. Khởi tạo các thành phần cốt lõi của ứng dụng
   await initAudioDB();
   loadState();
 
@@ -93,14 +103,44 @@ async function initApp() {
   cleanupOldData();
   setupEventListeners();
 
-  const userData = localStorage.getItem("quizlet_user");
+  // 3. Xử lý đăng nhập
+const userData = localStorage.getItem("quizlet_user");
+  
+  // 🔥 KIỂM TRA XEM TRÊN ĐƯỜNG LINK CÓ CHỨA LỜI GỌI TỪ EMAIL KHÔNG
+  const urlParams = new URLSearchParams(window.location.search);
+  const targetUser = urlParams.get('login'); 
+
   if (!userData) {
+    // Nếu chưa đăng nhập -> Mở form login
     const loginModal = document.getElementById("loginModal");
-    if (loginModal) loginModal.classList.remove("hidden");
+    if (loginModal) {
+        loginModal.classList.remove("hidden");
+        
+        // Ảo thuật đây: Nếu có tên từ email, tự động điền sẵn vào ô đăng nhập luôn!
+        if (targetUser) {
+            const usernameInput = document.getElementById("loginUsername"); // Đổi ID này cho đúng với HTML của ông
+            if (usernameInput) usernameInput.value = targetUser;
+        }
+    }
   } else {
+    // Nếu đã đăng nhập
+    const currentUser = JSON.parse(userData);
+    
+    // Cảnh báo nếu đang dùng acc người khác mà bấm nhầm link của hocvienB
+    if (targetUser && currentUser.username !== targetUser) {
+        alert(`Cảnh báo: Email này gửi cho ${targetUser}, nhưng bạn đang đăng nhập bằng ${currentUser.username}. Hãy đăng xuất nếu muốn chuyển tài khoản!`);
+    }
+
     window.applyRolePermissions(); 
     await fetchStudySetsFromSQL();
     window.navigateToHome();
+    
+    if (Notification.permission === "granted") {
+        new Notification("StudySet Online! 📚", {
+            body: `Chào mừng ${currentUser.username} quay trở lại!`,
+            icon: "https://cdn-icons-png.flaticon.com/512/3429/3429157.png" 
+        });
+    }
   }
   console.log("StudySet ready!");
 }
