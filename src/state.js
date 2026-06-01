@@ -73,7 +73,6 @@ export function createSet(name) {
     };
 
     // THÊM DÒNG NÀY VÀO ĐÂY
-    syncSetToBackend(set); 
 
     return set;
 }
@@ -201,7 +200,6 @@ export function addCardToSet(setId, card) {
 
     set.cards.push(card);
     set.meta.updatedAt = Date.now();
-    syncCardToBackend(setId, card);
 
     return card;
 }
@@ -338,42 +336,4 @@ export function exportState() {
         analytics: state.analytics,
         settings: state.settings
     };
-}
-// ============================================================
-// API NGẦM ĐỂ KẾT NỐI VỚI ASP.NET CORE (THAY THẾ LOCALSTORAGE)
-// ============================================================
-
-const API_BASE_URL = "https://localhost:7077/api"; 
-const USER_ID = 1; // ID User test của ông
-
-// Hàm này sẽ tự động chạy ngầm để đẩy Bộ từ vựng lên SQL
-export async function syncSetToBackend(set) {
-    try {
-        await fetch(`${API_BASE_URL}/StudySets`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                title: set.name, 
-                description: "Đồng bộ từ Quizlet Clone",
-                isPublic: true,
-                userId: USER_ID
-            })
-        });
-    } catch (e) { console.error("Lỗi sync Set:", e); }
-}
-
-// Hàm này tự động chạy ngầm để đẩy Flashcard lên SQL
-export async function syncCardToBackend(setId, card) {
-    try {
-        await fetch(`${API_BASE_URL}/Flashcards`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                term: card.term, 
-                definition: card.definition,
-                isStarred: card.starred || false,
-                studySetId: 3 // Tạm thời hardcode ID bộ thẻ số 1 để test
-            })
-        });
-    } catch (e) { console.error("Lỗi sync Card:", e); }
 }

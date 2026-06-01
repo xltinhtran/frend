@@ -5,6 +5,7 @@
 
 import { getTtsState, updateTtsState } from './state.js';
 import { getCachedAudio, setCachedAudio } from './storage.js';
+import { getElevenLabsSpeechStream } from './api.js';
 
 let currentAudio = null;
 let isSpeaking = false;
@@ -93,21 +94,7 @@ async function speakElevenLabs(text, ttsState, { onEnd, onError }) {
     console.log('TTS cache miss, fetching...');
 
     try {
-        const response = await fetch(
-            `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`,
-            {
-                method: 'POST',
-                headers: {
-                    'xi-api-key': ttsState.elevenLabsKey,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    text,
-                    model_id: 'eleven_turbo_v2_5',
-                    voice_settings: { stability: 0.5, similarity_boost: 0.75 }
-                })
-            }
-        );
+        const response = await getElevenLabsSpeechStream(voiceId, ttsState.elevenLabsKey, text);
 
         if (!response.ok) {
             throw new Error(`ElevenLabs API error: ${response.status}`);
@@ -239,21 +226,7 @@ async function processPreCacheQueue() {
     const existing = await getCachedAudio(cacheKey);
     if (!existing) {
         try {
-            const response = await fetch(
-                `https://api.elevenlabs.io/v1/text-to-speech/${ttsState.selectedVoiceId}/stream`,
-                {
-                    method: 'POST',
-                    headers: {
-                        'xi-api-key': ttsState.elevenLabsKey,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        text: card.term,
-                        model_id: 'eleven_turbo_v2_5',
-                        voice_settings: { stability: 0.5, similarity_boost: 0.75 }
-                    })
-                }
-            );
+            const response = await getElevenLabsSpeechStream(ttsState.selectedVoiceId, ttsState.elevenLabsKey, card.term);
 
             if (response.ok) {
                 const blob = await response.blob();

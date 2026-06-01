@@ -3,6 +3,7 @@ import { getAllSets, getTtsState } from "./state.js";
 import { getMasteryLevel } from "./spacedRep.js";
 import { getTodayStats, getStreakInfo } from "./analytics.js";
 import { escapeHtml } from "./renderUtils.js";
+import { getDashboardStudySets, getDashboardStudySetsResponse, resetStudyProgress } from "./api.js";
 
 async function fetchProgressData() {
   const user =
@@ -10,10 +11,7 @@ async function fetchProgressData() {
     JSON.parse(localStorage.getItem("user"));
   if (!user || !user.id) return [];
   try {
-    const res = await fetch(
-      `https://localhost:7077/api/StudySets/dashboard/${user.id}`,
-    );
-    return await res.json();
+    return await getDashboardStudySets(user.id);
   } catch (error) {
     console.error("Lỗi không lấy được dữ liệu từ C#:", error);
     return [];
@@ -367,13 +365,11 @@ window.resetAllProgress = async function () {
     const btn = document.getElementById("btnResetAll");
     if (btn) btn.innerText = "Processing...";
 
-    const res = await fetch(`https://localhost:7077/api/StudySets/Dashboard/${userData.id}`);
+    const res = await getDashboardStudySetsResponse(userData.id);
     const dashboardData = await res.json();
 
     const resetPromises = dashboardData.map((set) =>
-      fetch(`https://localhost:7077/api/StudyProgresses/reset/${set.id}/${userData.id}`, {
-        method: "DELETE",
-      })
+      resetStudyProgress(set.id, userData.id)
     );
     await Promise.all(resetPromises);
 

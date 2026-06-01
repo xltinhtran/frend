@@ -6,6 +6,7 @@ import { calculateSM2, GRADES } from "./spacedRep.js";
 import { recordCardStudy, recordSessionTime } from "./analytics.js";
 import { speak } from "./tts.js";
 import { getTtsState } from "./state.js";
+import { reviewFlashcard, toggleFlashcardStar } from "./api.js";
 
 export let learnState = { sessionStartTime: null, batchHistory: [] };
 
@@ -159,18 +160,14 @@ export async function handleGrade(grade) {
   const realCardId = card.id || parseInt(card.uuid);
 
   try {
-    fetch("https://localhost:7077/api/StudyProgresses/review", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, flashcardId: realCardId, grade }),
-    });
+    reviewFlashcard({ userId, flashcardId: realCardId, grade });
   } catch (err) {}
 
   if (isCorrect && session.mode === "starred" && card.starred) {
     card.starred = false;
     saveState();
     try {
-      fetch(`https://localhost:7077/api/Flashcards/toggle-star/${realCardId}/${userId}`, { method: "POST" });
+      toggleFlashcardStar(realCardId, userId);
     } catch (err) {}
   }
 
@@ -218,21 +215,17 @@ export function handleMultipleChoiceAnswer(isCorrect, selectedBtn, correctId) {
   );
   const realCardId = card ? card.id : parseInt(session.currentQuestionId);
 
-  fetch("https://localhost:7077/api/StudyProgresses/review", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      userId,
-      flashcardId: realCardId,
-      grade: gradeValue,
-    }),
+  reviewFlashcard({
+    userId,
+    flashcardId: realCardId,
+    grade: gradeValue,
   }).catch((err) => console.error(err));
 
   if (isCorrect && session.mode === "starred" && card && card.starred) {
     card.starred = false; 
     saveState();
     try {
-      fetch(`https://localhost:7077/api/Flashcards/toggle-star/${realCardId}/${userId}`, { method: "POST" });
+      toggleFlashcardStar(realCardId, userId);
     } catch (err) {}
   }
 

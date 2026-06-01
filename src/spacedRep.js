@@ -1,3 +1,5 @@
+import { logActivity, reviewFlashcard } from "./api.js";
+
 /**
  * spacedRep.js - SM-2 Spaced Repetition Algorithm
  * Implements SuperMemo 2 algorithm for optimal review scheduling
@@ -231,10 +233,7 @@ export async function saveReviewToDatabase(flashcardId, sm2Result) {
 
     try {
         // 2. Gửi API lưu tiến độ học tập
-        const response = await fetch('https://localhost:7077/api/StudyProgresses/review', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
+        const response = await reviewFlashcard({
                 userId: user.id,
                 flashcardId: flashcardId,
                 easeFactor: sm2Result.ease,
@@ -242,7 +241,6 @@ export async function saveReviewToDatabase(flashcardId, sm2Result) {
                 repetitions: sm2Result.repetitions,
                 nextReviewDate: new Date(sm2Result.dueAt).toISOString(),
                 grade: sm2Result.grade || 3 // Nếu sm2Result có gửi điểm thì lấy, không thì mặc định là 3
-            })
         });
 
         if (!response.ok) throw new Error('Không thể lưu tiến độ lên server');
@@ -251,16 +249,12 @@ export async function saveReviewToDatabase(flashcardId, sm2Result) {
         
         // 3. Gọi API lưu log hoạt động
         try {
-            await fetch("https://localhost:7077/api/ActivityLogs", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
+            await logActivity({
                     userId: user.id,
                     actionText: "vừa ôn tập xong 1 thẻ từ vựng.",
                     icon: "school",
                     color: "text-blue-500",
                     bgColor: "bg-blue-100"
-                })
             });
         } catch (logErr) {
             console.error("Lỗi ghi log rác rưởi:", logErr);

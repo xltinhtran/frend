@@ -1,15 +1,13 @@
 // auth.js
+import { loginUser, registerUser } from "./api.js";
+
 export function setupAuthListeners() {
     document.getElementById("loginForm")?.addEventListener("submit", async (e) => {
         e.preventDefault();
         const username = document.getElementById("loginUsername").value;
         const password = document.getElementById("loginPassword").value;
         try {
-            const response = await fetch("http://localhost/quizlet_api/login.php", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ username, password }),
-            });
+            const response = await loginUser(username, password);
             const data = await response.json();
             if (response.ok) {
                 // 1. Lưu session đăng nhập
@@ -66,11 +64,7 @@ export function setupAuthListeners() {
         if (password !== confirmPassword) return alert("Ê ní ơi, 2 cái mật khẩu nó đấm nhau kìa! Nhập lại cho giống nhau nha!");
 
         try {
-            const response = await fetch("http://localhost/quizlet_api/register.php", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ username, email, passwordHash: password, role: "Learner" }),
-            });
+            const response = await registerUser({ username, email, password });
             if (response.ok) {
                 alert("Đăng ký thành công qua hệ thống PHP! Quay lại đăng nhập thôi!");
                 

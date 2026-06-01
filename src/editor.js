@@ -1,7 +1,7 @@
 // editor.js
 import { getState } from "./state.js";
 import { hideModal } from "./navigation.js";
-import { fetchStudySetsFromSQL } from "./api.js";
+import { createFlashcard, createStudySet, fetchStudySetsFromSQL, updateFlashcard } from "./api.js";
 
 export function setupEditorListeners() {
     document.getElementById("createSetForm")?.addEventListener("submit", async (e) => {
@@ -10,11 +10,7 @@ export function setupEditorListeners() {
         const userData = JSON.parse(localStorage.getItem("quizlet_user"));
         if (name) {
             try {
-                const response = await fetch("https://localhost:7077/api/StudySets", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ title: name, description: "", isPublic: true, userId: userData ? userData.id : 1 }),
-                });
+                const response = await createStudySet({ title: name, userId: userData ? userData.id : 1 });
                 if (!response.ok) return alert("Lỗi: Backend từ chối lưu!");
                 const result = await response.json();
                 const newSetId = result.data.id.toString();
@@ -40,11 +36,7 @@ export function setupEditorListeners() {
 
         if (term && def) {
             try {
-                const response = await fetch(`https://localhost:7077/api/Flashcards`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ term, definition: def, studySetId: parseInt(activeSetId), isStarred: false, imageUrl, example: exampleText }),
-                });
+                const response = await createFlashcard({ term, definition: def, studySetId: parseInt(activeSetId), isStarred: false, imageUrl, example: exampleText });
                 if (!response.ok) return alert("Lưu thẻ thất bại!");
                 hideModal("addCardModal");
                 if (window.logSystemActivity) window.logSystemActivity(`vừa thêm thẻ "${term}" vào bộ.`, "post_add", "text-blue-500", "bg-blue-100");
@@ -71,11 +63,7 @@ export function setupEditorListeners() {
         const activeSetId = getState().activeSetId;
 
         try {
-            const response = await fetch(`https://localhost:7077/api/Flashcards/${cardId}`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id: parseInt(cardId), term: newTerm, definition: newDef, studySetId: parseInt(activeSetId), imageUrl: newImg, example: newExample })
-            });
+            const response = await updateFlashcard(cardId, { id: parseInt(cardId), term: newTerm, definition: newDef, studySetId: parseInt(activeSetId), imageUrl: newImg, example: newExample });
             if (response.ok) {
                 document.getElementById("editCardModal").classList.add("hidden");
                 if (window.logSystemActivity) window.logSystemActivity(`vừa cập nhật thẻ "${newTerm}".`, "edit_note", "text-amber-500", "bg-amber-100");
@@ -129,11 +117,7 @@ export function setupEditorListeners() {
 
         try {
             for (const card of cardsToImport) {
-                const response = await fetch(`https://localhost:7077/api/Flashcards`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ term: card.term, definition: card.definition, studySetId: parseInt(activeSetId), isStarred: false, imageUrl: card.imageUrl, example: card.example }),
-                });
+                const response = await createFlashcard({ term: card.term, definition: card.definition, studySetId: parseInt(activeSetId), isStarred: false, imageUrl: card.imageUrl, example: card.example });
                 if (response.ok) successCount++;
             }
             alert(`Đã nạp thành công ${successCount}/${cardsToImport.length} thẻ vào SQL!`);

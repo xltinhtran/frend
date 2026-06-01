@@ -1,6 +1,6 @@
 import { getState, setState, getAllSets, getDueCards } from "./state.js";
 import { saveState } from "./storage.js";
-import { fetchStudySetsFromSQL } from "./api.js";
+import { deleteFlashcard, deleteStudySet, fetchStudySetsFromSQL, resetStudyProgress, toggleFlashcardStar } from "./api.js";
 import { navigateToLearnMode } from "./learn.js";
 
 
@@ -11,10 +11,7 @@ export async function handleResetProgress(setId) {
   if (!confirm("Ông có chắc muốn xóa sạch tiến độ bộ này để học lại từ đầu không?")) return;
 
   try {
-    const response = await fetch(
-      `https://localhost:7077/api/StudyProgresses/reset/${setId}/${userData.id}`,
-      { method: "DELETE" },
-    );
+    const response = await resetStudyProgress(setId, userData.id);
 
     if (response.ok) {
       // 🔥 BOM NGUYÊN TỬ: XÓA SẠCH 100% BỘ NHỚ TRÌNH DUYỆT 🔥
@@ -45,10 +42,7 @@ export async function handleToggleStar(cardId) {
   const userId = userData ? userData.id : 1;
 
   try {
-    fetch(
-      `https://localhost:7077/api/Flashcards/toggle-star/${cardId}/${userId}`,
-      { method: "POST" },
-    );
+    toggleFlashcardStar(cardId, userId);
   } catch (err) {
     console.error("Lỗi đồng bộ sao", err);
   }
@@ -61,10 +55,7 @@ export async function handleDeleteCurrentSet() {
   if (!confirm("CẢNH BÁO: Ông sắp xóa TOÀN BỘ bộ thẻ này. Chắc chắn chưa?")) return;
 
   try {
-    const response = await fetch(
-      `https://localhost:7077/api/StudySets/${activeSetId}`,
-      { method: "DELETE" },
-    );
+    const response = await deleteStudySet(activeSetId);
 
     if (!response.ok) {
       alert("Lỗi: Không xóa được bộ thẻ!");
@@ -158,9 +149,7 @@ export function handleRandomSet() {
 window.deleteSingleCard = async function(cardId) {
     if (!confirm("Ê ní, có chắc là muốn xóa từ này khỏi bộ không?")) return;
     try {
-        const response = await fetch(`https://localhost:7077/api/Flashcards/${cardId}`, {
-            method: "DELETE"
-        });
+        const response = await deleteFlashcard(cardId);
         if (response.ok) {
             await fetchStudySetsFromSQL(); 
             if (window.logSystemActivity) window.logSystemActivity("vừa xóa một thẻ từ vựng.", "delete", "text-red-500", "bg-red-100");
