@@ -2,7 +2,6 @@ import { getState, setState, addSet } from "./state.js";
 import { saveState } from "./storage.js";
 
 export const API_BASE_URL = "https://localhost:7077/api";
-export const PHP_API_BASE_URL = "http://localhost/quizlet_api";
 export const ELEVENLABS_API_BASE_URL = "https://api.elevenlabs.io/v1";
 
 export async function apiRequest(path, options = {}) {
@@ -15,12 +14,8 @@ export async function apiJson(path, options = {}) {
   return response.json();
 }
 
-export async function phpApiRequest(path, options = {}) {
-  return fetch(`${PHP_API_BASE_URL}${path}`, options);
-}
-
 export function loginUser(username, password) {
-  return phpApiRequest("/login.php", {
+  return apiRequest("/Accounts/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username, password }),
@@ -28,7 +23,7 @@ export function loginUser(username, password) {
 }
 
 export function registerUser({ username, email, password }) {
-  return phpApiRequest("/register.php", {
+  return apiRequest("/Accounts/register", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username, email, passwordHash: password, role: "Learner" }),

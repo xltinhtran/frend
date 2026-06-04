@@ -30,7 +30,7 @@ export function setupAuthListeners() {
                 alert(data.message || "Lỗi đăng nhập!");
             }
         } catch (err) {
-            alert("Lỗi kết nối Backend PHP! Coi lại XAMPP bật chưa?");
+            alert("Lỗi kết nối Backend C#! Kiểm tra ASP.NET API đã chạy chưa?");
         }
     });
     
@@ -66,7 +66,7 @@ export function setupAuthListeners() {
         try {
             const response = await registerUser({ username, email, password });
             if (response.ok) {
-                alert("Đăng ký thành công qua hệ thống PHP! Quay lại đăng nhập thôi!");
+                alert("Đăng ký thành công qua Backend C#! Quay lại đăng nhập thôi!");
                 
                 // 🔥 LOG ĐĂNG KÝ
                 if (window.logSystemActivity) window.logSystemActivity("vừa đăng ký tài khoản mới thành công.", "person_add", "text-emerald-500", "bg-emerald-100");
@@ -78,7 +78,7 @@ export function setupAuthListeners() {
                 alert("Lỗi: " + (data.message || "Bị lỗi gì đó rồi!"));
             }
         } catch (err) {
-            alert("Lỗi kết nối Backend PHP! Coi lại XAMPP bật chưa?");
+            alert("Lỗi kết nối Backend C#! Kiểm tra ASP.NET API đã chạy chưa?");
         }
     });
 
