@@ -33,7 +33,7 @@ export async function handleResetProgress(setId) {
 export async function handleToggleStar(cardId) {
   const currentState = getState();
   const setId = currentState.activeSetId;
-  const set = currentState.sets[setId];
+  const set = currentState.allSets[setId];
   if (!set) return;
 
   saveState();
@@ -63,8 +63,8 @@ export async function handleDeleteCurrentSet() {
     }
 
     const currentState = getState();
-    if (currentState.sets[activeSetId]) {
-      delete currentState.sets[activeSetId];
+    if (currentState.allSets[activeSetId]) {
+      delete currentState.allSets[activeSetId];
       setState(currentState);
       saveState(currentState);
     }

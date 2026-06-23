@@ -9,7 +9,19 @@ export function renderSetView(setId, handlers) {
   renderSetViewHeader(set, handlers);
   renderFlashcardCarousel(set, handlers);
   renderSetViewActions(set, handlers);
+  renderEditorContentSummary(set);
   renderTermList(set, handlers);
+}
+
+function getCurrentRole() {
+  const user =
+    JSON.parse(localStorage.getItem("quizlet_user")) ||
+    JSON.parse(localStorage.getItem("user"));
+  return (user?.role || user?.Role || "").trim().toLowerCase();
+}
+
+function isEditorRole() {
+  return getCurrentRole() === "editor";
 }
 
 function renderSetViewHeader(set, handlers) {
@@ -121,10 +133,11 @@ export function renderSetViewActions(set, handlers) {
     const starredBtn = document.getElementById("setViewStarredBtn");
     const dueBtn = document.getElementById("setViewDueBtn");
 
-    const user = JSON.parse(localStorage.getItem("quizlet_user")) || JSON.parse(localStorage.getItem("user"));
-    const isAdmin = user && (user.role === "Admin" || user.Role === "Admin");
+    const role = getCurrentRole();
+    const isAdmin = role === "admin";
+    const isEditor = role === "editor";
 
-    if (isAdmin) {
+    if (isAdmin || isEditor) {
         if (learnBtn) learnBtn.classList.add("hidden");
         if (starredBtn) starredBtn.classList.add("hidden");
         if (dueBtn) dueBtn.classList.add("hidden");
@@ -168,6 +181,58 @@ export function renderSetViewActions(set, handlers) {
             dueBtn.className = "bg-slate-100 text-slate-400 px-6 py-3 rounded-lg font-semibold flex items-center gap-2 opacity-50 cursor-not-allowed";
         }
     }
+}
+
+function renderEditorContentSummary(set) {
+    const addCardBtn = document.getElementById("setViewAddCardBtn");
+    const toolbar = addCardBtn?.parentElement;
+    if (!toolbar) return;
+
+    document.getElementById("editorSetSummary")?.remove();
+    document.getElementById("editorSetHeading")?.remove();
+
+    if (!isEditorRole()) return;
+
+    const totalCards = set.cards.length;
+    const withImages = set.cards.filter((card) => card.imageUrl || card.ImageUrl).length;
+    const withExamples = set.cards.filter((card) => card.example || card.Example).length;
+    const missingExamples = Math.max(totalCards - withExamples, 0);
+
+    const summary = document.createElement("div");
+    summary.id = "editorSetSummary";
+    summary.className = "grid grid-cols-1 sm:grid-cols-4 gap-3 mb-6";
+    summary.innerHTML = `
+        <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+            <p class="text-xs font-bold text-slate-400 uppercase">Total words</p>
+            <p class="text-2xl font-extrabold text-slate-800 mt-1">${totalCards}</p>
+        </div>
+        <div class="bg-white border border-indigo-100 rounded-xl p-4 shadow-sm">
+            <p class="text-xs font-bold text-slate-400 uppercase">Examples</p>
+            <p class="text-2xl font-extrabold text-indigo-600 mt-1">${withExamples}</p>
+        </div>
+        <div class="bg-white border border-sky-100 rounded-xl p-4 shadow-sm">
+            <p class="text-xs font-bold text-slate-400 uppercase">Images</p>
+            <p class="text-2xl font-extrabold text-sky-600 mt-1">${withImages}</p>
+        </div>
+        <div class="bg-white border border-amber-100 rounded-xl p-4 shadow-sm">
+            <p class="text-xs font-bold text-slate-400 uppercase">Need examples</p>
+            <p class="text-2xl font-extrabold text-amber-600 mt-1">${missingExamples}</p>
+        </div>
+    `;
+
+    const heading = document.createElement("div");
+    heading.id = "editorSetHeading";
+    heading.className = "flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4";
+    heading.innerHTML = `
+        <div>
+            <p class="text-sm font-bold text-indigo-600 uppercase tracking-wide">Editor Content Manager</p>
+            <h2 class="text-xl font-extrabold text-slate-900">Manage TOEIC vocabulary content</h2>
+        </div>
+        <p class="text-sm text-slate-500">Add terms, examples, images, then update cards from the list below.</p>
+    `;
+
+    toolbar.parentElement.insertBefore(summary, toolbar);
+    toolbar.parentElement.insertBefore(heading, toolbar);
 }
 
 export function renderTermList(set, handlers) {
@@ -265,7 +330,9 @@ export function renderTermList(set, handlers) {
             </div>
         `;
 
-        leftSideDiv.appendChild(starIcon);
+        if (!isEditorRole()) {
+            leftSideDiv.appendChild(starIcon);
+        }
         leftSideDiv.appendChild(contentDiv);
 
         const actionsDiv = document.createElement("div");

@@ -45,6 +45,9 @@ window.applyRolePermissions = function() {
         styleEl.innerHTML = ""; 
         [els.createBtn, els.addCardBtn, els.deleteSetBtn, els.bulkBtn, els.search].forEach(el => el?.classList.remove("hidden"));
         [els.reset, els.due, els.random].forEach(el => el?.classList.add("hidden"));
+        document.getElementById("homeStats")?.classList.add("hidden");
+        document.getElementById("resetAllContainer")?.classList.add("hidden");
+        document.getElementById("homeResumeSection")?.classList.add("hidden");
 
         document.querySelectorAll("button").forEach(btn => {
             const txt = btn.innerText.toLowerCase();
@@ -52,6 +55,9 @@ window.applyRolePermissions = function() {
                 btn.classList.add("hidden");
             }
         });
+        if (typeof window.renderEditorShell === "function") {
+            window.renderEditorShell();
+        }
     } else if (currentRole === "admin") {
         styleEl.innerHTML = ""; 
         if (els.studyArea) els.studyArea.classList.add("hidden");

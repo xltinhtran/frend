@@ -6,6 +6,14 @@ let currentLearnSession = null;
 let currentLearnSet = null;
 let currentLearnHandlers = null;
 
+function getCleanDefinition(definition = "") {
+  return definition
+    .replace(/\/[^/]+\/\s*/g, "")
+    .replace(/\([^)]*\)\s*/g, "")
+    .replace(/^[\s\-:]+/, "")
+    .trim();
+}
+
 export function renderLearnMode(session, set, handlers) {
   renderLearnProgress(session);
   renderLearnQuestion(session, set, handlers);
@@ -79,11 +87,16 @@ export function renderLearnQuestion(session, set, handlers) {
   const oldButtons = qContainer.querySelectorAll("button");
   oldButtons.forEach(btn => btn.remove());
 
-  const newSpeakBtn = document.createElement("button");
-  newSpeakBtn.className = "mr-6 text-indigo-500 hover:text-indigo-700 flex-shrink-0 transition-all p-3 rounded-full hover:bg-indigo-100 shadow-md cursor-pointer transform hover:scale-110 active:scale-95";
-  newSpeakBtn.innerHTML = `<span class="material-symbols-outlined text-4xl pointer-events-none">volume_up</span>`;
-  
-  qContainer.insertBefore(newSpeakBtn, qTextDiv);
+  const showSpeakButton = modeToPlay === "DICTATION";
+  let newSpeakBtn = null;
+
+  if (showSpeakButton) {
+      newSpeakBtn = document.createElement("button");
+      newSpeakBtn.className = "mr-6 text-indigo-500 hover:text-indigo-700 flex-shrink-0 transition-all p-3 rounded-full hover:bg-indigo-100 shadow-md cursor-pointer transform hover:scale-110 active:scale-95";
+      newSpeakBtn.innerHTML = `<span class="material-symbols-outlined text-4xl pointer-events-none">volume_up</span>`;
+      
+      qContainer.insertBefore(newSpeakBtn, qTextDiv);
+  }
 
   // 🔥 FIX Ở ĐÂY: ÉP CỨNG 100% ĐỌC TIẾNG ANH BẤT CHẤP MỌI THỂ LOẠI GAME 🔥
   let textToRead = card.term; // Mặc định luôn là Từ Tiếng Anh
@@ -103,12 +116,14 @@ export function renderLearnQuestion(session, set, handlers) {
       window.speechSynthesis.speak(msg);
   };
 
-  newSpeakBtn.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation(); 
-      playAudio();
-      document.getElementById("learnTextInput")?.focus(); 
-  });
+  if (newSpeakBtn) {
+      newSpeakBtn.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation(); 
+          playAudio();
+          document.getElementById("learnTextInput")?.focus(); 
+      });
+  }
 
   if (modeToPlay === "DICTATION") {
       setTimeout(playAudio, 300); 
@@ -116,12 +131,14 @@ export function renderLearnQuestion(session, set, handlers) {
 
   // 4. Bật đúng Game lên
   if (modeToPlay === "MULTIPLE_CHOICE") {
-      questionText.innerHTML = escapeHtml(card.definition);
+      questionText.innerHTML = escapeHtml(getCleanDefinition(card.definition) || card.definition);
       answerOptions.classList.remove("hidden");
       renderMultipleChoice(session, set, handlers);
   } 
   else if (modeToPlay === "DICTATION") {
       questionText.innerHTML = `<span class="material-symbols-outlined text-5xl text-indigo-500 mb-2 drop-shadow-md">headphones</span><br><span class="text-slate-600 font-bold text-lg uppercase tracking-wider">Nghe và gõ lại từ</span><br><span class="text-sm text-slate-400 mt-2 block">Gợi ý: ${escapeHtml(card.definition)}</span>`;
+      questionText.querySelector(".text-sm:not(.font-bold)")?.remove();
+      questionText.querySelector(".text-indigo-400")?.remove();
       textInputArea.classList.remove("hidden");
       setupTextInput(card, handlers);
   } 
@@ -136,6 +153,14 @@ export function renderLearnQuestion(session, set, handlers) {
       questionText.innerHTML = `<span class="text-slate-500 text-sm font-bold block mb-3 uppercase tracking-wider">Sắp xếp câu ví dụ</span><span class="text-lg font-medium text-indigo-600">Dịch nghĩa của từ: ${escapeHtml(card.definition)}</span>`;
       arrangeArea.classList.remove("hidden");
       setupArrange(card, handlers);
+  }
+
+  if (modeToPlay === "FILL_BLANK") {
+      questionText.querySelector(".text-indigo-400")?.remove();
+  }
+
+  if (modeToPlay === "ARRANGE") {
+      questionText.innerHTML = `<span class="text-2xl font-semibold text-indigo-600">${escapeHtml(card.term)}</span>`;
   }
 }
 // ==========================================

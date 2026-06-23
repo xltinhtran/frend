@@ -66,6 +66,14 @@ export function deleteStudySet(setId) {
   return apiRequest(`/StudySets/${setId}`, { method: "DELETE" });
 }
 
+export function updateStudySet(setId, set) {
+  return apiRequest(`/StudySets/${setId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(set),
+  });
+}
+
 export function createFlashcard(card) {
   return apiRequest("/Flashcards", {
     method: "POST",
@@ -143,7 +151,7 @@ export async function fetchStudySetsFromSQL() {
     const sqlData = await response.json();
 
     const currentState = getState();
-    currentState.sets = {};
+    currentState.allSets = {};
     setState(currentState);
 
     sqlData.forEach((sqlSet) => {
