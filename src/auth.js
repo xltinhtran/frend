@@ -1,40 +1,43 @@
 // auth.js
 import { loginUser, registerUser } from "./api.js";
 
+function getErrorMessage(data, fallback) {
+    return data?.message || fallback;
+}
+
 export function setupAuthListeners() {
     document.getElementById("loginForm")?.addEventListener("submit", async (e) => {
         e.preventDefault();
-        const username = document.getElementById("loginUsername").value;
+        const username = document.getElementById("loginUsername").value.trim();
         const password = document.getElementById("loginPassword").value;
+
         try {
             const response = await loginUser(username, password);
             const data = await response.json();
+
             if (response.ok) {
-                // 1. Lưu session đăng nhập
                 localStorage.setItem("quizlet_user", JSON.stringify(data));
-                
-                // 2. 🔥 BẮN LOG HOẠT ĐỘNG LÊN DATABASE Ở ĐÂY 🔥
+
                 if (window.logSystemActivity) {
                     window.logSystemActivity(
-                        "vừa đăng nhập vào hệ thống.", 
-                        "login", 
-                        "text-green-500", 
+                        "vừa đăng nhập vào hệ thống.",
+                        "login",
+                        "text-green-500",
                         "bg-green-100"
                     );
                 }
 
-                // 3. Thông báo và tải lại trang
-                alert("Login successful ! Hello " + data.username);
+                alert("Đăng nhập thành công! Xin chào " + data.username);
                 location.reload();
-            } else {
-                alert(data.message || "Lỗi đăng nhập!");
+                return;
             }
+
+            alert(getErrorMessage(data, "Lỗi đăng nhập!"));
         } catch (err) {
-            alert("Lỗi kết nối Backend PHP! Coi lại XAMPP bật chưa?");
+            alert("Lỗi kết nối Backend C#! Kiểm tra API https://localhost:7077 đã chạy chưa.");
         }
     });
-    
-    // ... (Các phần code bên dưới của form Register ông cứ giữ nguyên nhé)
+
     document.getElementById("showRegisterBtn")?.addEventListener("click", (e) => {
         e.preventDefault();
         document.getElementById("loginForm").classList.add("hidden");
@@ -59,26 +62,34 @@ export function setupAuthListeners() {
         const confirmPassword = document.getElementById("regConfirmPassword").value;
 
         const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
-        if (!usernameRegex.test(username)) return alert("Tên đăng nhập phải từ 3 đến 20 ký tự, viết liền không dấu và không chứa ký tự đặc biệt nha ní!");
-        if (password.length < 6) return alert("Mật khẩu gì mà ngắn ngủn vậy! Đặt ít nhất 6 ký tự cho nó an toàn nhé!");
-        if (password !== confirmPassword) return alert("Ê ní ơi, 2 cái mật khẩu nó đấm nhau kìa! Nhập lại cho giống nhau nha!");
+        if (!usernameRegex.test(username)) return alert("Tên đăng nhập phải từ 3 đến 20 ký tự, viết liền không dấu và không chứa ký tự đặc biệt.");
+        if (password.length < 6) return alert("Mật khẩu phải có ít nhất 6 ký tự.");
+        if (password !== confirmPassword) return alert("Hai mật khẩu không khớp. Nhập lại giúp mình nhé.");
 
         try {
             const response = await registerUser({ username, email, password });
+            const data = await response.json().catch(() => ({}));
+
             if (response.ok) {
-                alert("Đăng ký thành công qua hệ thống PHP! Quay lại đăng nhập thôi!");
-                
-                // 🔥 LOG ĐĂNG KÝ
-                if (window.logSystemActivity) window.logSystemActivity("vừa đăng ký tài khoản mới thành công.", "person_add", "text-emerald-500", "bg-emerald-100");
-                
+                alert("Đăng ký thành công qua Backend C#! Quay lại đăng nhập thôi!");
+
+                if (window.logSystemActivity) {
+                    window.logSystemActivity(
+                        "vừa đăng ký tài khoản mới thành công.",
+                        "person_add",
+                        "text-emerald-500",
+                        "bg-emerald-100"
+                    );
+                }
+
                 document.getElementById("showLoginBtn").click();
                 document.getElementById("registerForm").reset();
-            } else {
-                const data = await response.json();
-                alert("Lỗi: " + (data.message || "Bị lỗi gì đó rồi!"));
+                return;
             }
+
+            alert("Lỗi: " + getErrorMessage(data, "Đăng ký thất bại!"));
         } catch (err) {
-            alert("Lỗi kết nối Backend PHP! Coi lại XAMPP bật chưa?");
+            alert("Lỗi kết nối Backend C#! Kiểm tra API https://localhost:7077 đã chạy chưa.");
         }
     });
 
