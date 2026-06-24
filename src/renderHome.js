@@ -360,6 +360,152 @@ function getSetLevel(setName = "") {
   return match ? match[1].toUpperCase() : "N/A";
 }
 
+function getLearnerInitials(name = "") {
+  const parts = String(name).trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "HV";
+  return parts.slice(0, 2).map((part) => part[0]).join("").toUpperCase();
+}
+
+function getLevelRank(level) {
+  return ["A1", "A2", "B1", "B2", "C1", "C2"].indexOf(level);
+}
+
+function buildLearnerProgressSummary() {
+  const allSets = getAllSets();
+  const setIds = Object.keys(allSets).filter((id) => id !== "review_all_fake");
+  const summary = {
+    totalCards: 0,
+    learnedCards: 0,
+    masteredCards: 0,
+    learningCards: 0,
+    remainingCards: 0,
+    currentLevel: "N/A",
+    unfinishedTopics: [],
+  };
+
+  let highestTouchedRank = -1;
+  let lowestSetLevel = "N/A";
+
+  setIds.forEach((setId) => {
+    const set = allSets[setId];
+    const cards = set?.cards || [];
+    const title = set?.name || set?.title || "Chủ đề chưa đặt tên";
+    const level = getSetLevel(title);
+    const levelRank = getLevelRank(level);
+    if (levelRank >= 0 && (lowestSetLevel === "N/A" || levelRank < getLevelRank(lowestSetLevel))) {
+      lowestSetLevel = level;
+    }
+
+    let learnedInSet = 0;
+    cards.forEach((card) => {
+      const mastery = getMasteryLevel(card.stats);
+      summary.totalCards += 1;
+
+      if (mastery > 0) {
+        summary.learnedCards += 1;
+        learnedInSet += 1;
+        if (levelRank > highestTouchedRank) highestTouchedRank = levelRank;
+      }
+
+      if (mastery >= 5) {
+        summary.masteredCards += 1;
+      } else if (mastery > 0) {
+        summary.learningCards += 1;
+      } else {
+        summary.remainingCards += 1;
+      }
+    });
+
+    const progress = cards.length > 0 ? Math.round((learnedInSet / cards.length) * 100) : 0;
+    if (cards.length > 0 && progress < 100) {
+      summary.unfinishedTopics.push({
+        title,
+        learned: learnedInSet,
+        total: cards.length,
+        progress,
+      });
+    }
+  });
+
+  if (highestTouchedRank >= 0) {
+    summary.currentLevel = ["A1", "A2", "B1", "B2", "C1", "C2"][highestTouchedRank];
+  } else {
+    summary.currentLevel = lowestSetLevel;
+  }
+
+  return summary;
+}
+
+function setText(id, value) {
+  const element = document.getElementById(id);
+  if (element) element.textContent = value;
+}
+
+function renderLearnerProfileButton() {
+  const button = document.getElementById("learnerProfileBtn");
+  if (!button) return;
+
+  const user = getCurrentUser();
+  const role = getCurrentRole();
+  const isLearner = user && role !== "admin" && role !== "editor";
+
+  if (!isLearner) {
+    button.classList.add("hidden");
+    button.classList.remove("flex");
+    return;
+  }
+
+  const username = user.username || user.Username || "Học viên";
+  const summary = buildLearnerProgressSummary();
+
+  button.classList.remove("hidden");
+  button.classList.add("flex");
+  setText("learnerProfileAvatar", getLearnerInitials(username));
+  setText("learnerProfileName", username);
+  setText("learnerProfileLevel", `Cấp độ ${summary.currentLevel}`);
+  button.onclick = showLearnerProgressModal;
+}
+
+function renderListItems(items, emptyText, itemRenderer) {
+  if (!items || items.length === 0) return `<p class="text-slate-400">${escapeHtml(emptyText)}</p>`;
+  return `<ul class="space-y-1">${items.map(itemRenderer).join("")}</ul>`;
+}
+
+function showLearnerProgressModal() {
+  const user = getCurrentUser();
+  const username = user?.username || user?.Username || "Học viên";
+  const summary = buildLearnerProgressSummary();
+  const modal = document.getElementById("progressModal");
+  if (!modal) return;
+
+  setText("progressUserName", `Tiến độ của: ${username}`);
+  setText("progLevel", summary.currentLevel);
+  setText("progMastered", `${summary.learnedCards} từ`);
+  setText("progLearning", `${summary.learningCards} từ`);
+  setText("progRemaining", `${summary.remainingCards} từ`);
+  setText("progTotal", `${summary.totalCards} từ`);
+
+  const topicsEl = document.getElementById("progUnfinishedTopics");
+  if (topicsEl) {
+    topicsEl.innerHTML = renderListItems(
+      summary.unfinishedTopics.slice(0, 12),
+      "Tất cả chủ đề đã hoàn thành.",
+      (topic) => `
+        <li>
+          <div class="flex justify-between gap-3">
+            <span class="truncate">${escapeHtml(topic.title)}</span>
+            <span class="shrink-0 font-bold">${topic.progress}%</span>
+          </div>
+          <div class="text-xs text-orange-500">${topic.learned}/${topic.total} từ đã học</div>
+        </li>
+      `,
+    );
+  }
+
+  modal.classList.remove("hidden");
+  modal.classList.add("flex");
+}
+
 export async function renderHome(handlers) {
   savedHandlers = handlers;
   renderHomeHeader(handlers);
@@ -367,11 +513,13 @@ export async function renderHome(handlers) {
   renderHomeResumeSection(handlers);
   renderHomeSetGrid(handlers);
   renderHomeStats();
+  renderLearnerProfileButton();
   renderEditorHome();
 
   setTimeout(() => {
     const studySelect = document.getElementById("quickActionStudy");
     if (studySelect && !isEditorRole()) studySelect.dispatchEvent(new Event("change"));
+    renderLearnerProfileButton();
     renderEditorHome();
   }, 100);
 }
@@ -398,11 +546,13 @@ function renderHomeHeader(handlers) {
     if (title) title.textContent = "Không gian Biên tập";
     if (subtitle) subtitle.textContent = "Quản lý bộ từ vựng TOEIC, câu ví dụ và hình ảnh minh họa";
     if (micIndicator) micIndicator.classList.add("hidden");
+    renderLearnerProfileButton();
     document.body.classList.add("editor-shell-active");
   } else {
     if (title) title.textContent = "StudySet";
     if (subtitle) subtitle.textContent = "Master your flashcards";
     if (micIndicator) micIndicator.classList.remove("hidden");
+    renderLearnerProfileButton();
     document.body.classList.remove("editor-shell-active");
     document.getElementById("editorSidebar")?.remove();
   }

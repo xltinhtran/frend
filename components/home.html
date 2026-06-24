@@ -11,6 +11,13 @@
         <p id="homeSubtitle" class="text-slate-500 text-sm mt-1">Master your flashcards</p>
       </div>
       <div class="flex items-center gap-2">
+        <button id="learnerProfileBtn" type="button" class="hidden items-center gap-2 rounded-lg border border-indigo-100 bg-white px-3 py-2 text-left shadow-sm transition-all hover:border-indigo-300 hover:bg-indigo-50" title="Xem thông tin học viên">
+          <span id="learnerProfileAvatar" class="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-600 text-sm font-extrabold text-white">HV</span>
+          <span class="hidden sm:block leading-tight">
+            <span id="learnerProfileName" class="block max-w-[140px] truncate text-sm font-bold text-slate-800">Hoc vien</span>
+            <span id="learnerProfileLevel" class="block text-xs font-semibold text-indigo-600">Cap do N/A</span>
+          </span>
+        </button>
         <div id="micIndicator" class="text-slate-300 p-2 cursor-help" title="Free voices (browser)">
           <span class="material-symbols-outlined">mic</span>
         </div>
@@ -302,6 +309,16 @@
         
         <div class="border-t border-dashed border-slate-200 my-4 pt-4 flex justify-between items-center">
             <span class="text-slate-800 font-bold">Tổng hệ thống:</span> <span id="progTotal" class="text-slate-800 font-bold text-lg">0 từ</span>
+        </div>
+
+        <div class="mt-5 grid grid-cols-1 gap-4">
+          <div class="rounded-xl bg-orange-50 p-4">
+            <div class="mb-2 flex items-center gap-2 text-sm font-bold text-orange-700">
+              <span class="material-symbols-outlined text-base text-orange-500">pending_actions</span>
+              Chủ đề chưa xong
+            </div>
+            <div id="progUnfinishedTopics" class="max-h-32 overflow-y-auto text-sm text-orange-700">Chưa có dữ liệu</div>
+          </div>
         </div>
         
         <div class="mt-6 text-right">

@@ -136,14 +136,18 @@ export function setupLevelFilter() {
 export function handleRandomSet() {
   const allSets = getAllSets();
   const setIds = Object.keys(allSets).filter(
-    (id) => allSets[id].cards.length >= 2,
+    (id) => id !== "review_all_fake" && allSets[id].cards.length > 0,
   );
 
   if (setIds.length === 0)
-    return alert("Kiếm bộ nào có từ 2 thẻ trở lên mới chơi random được!");
+    return alert("Chưa có chủ đề nào để mở ngẫu nhiên!");
 
   const randomId = setIds[Math.floor(Math.random() * setIds.length)];
-  navigateToLearnMode(randomId, { mode: "all" });
+  if (window.navigateToSetView) {
+    window.navigateToSetView(randomId);
+  } else {
+    navigateToLearnMode(randomId, { mode: "all" });
+  }
 }
 
 window.deleteSingleCard = async function(cardId) {
