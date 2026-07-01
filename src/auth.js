@@ -20,21 +20,21 @@ export function setupAuthListeners() {
 
                 if (window.logSystemActivity) {
                     window.logSystemActivity(
-                        "vừa đăng nhập vào hệ thống.",
+                        "vua dang nhap vao he thong.",
                         "login",
                         "text-green-500",
                         "bg-green-100"
                     );
                 }
 
-                alert("Đăng nhập thành công! Xin chào " + data.username);
+                alert("Login successful ! Hello " + data.username);
                 location.reload();
                 return;
             }
 
-            alert(getErrorMessage(data, "Lỗi đăng nhập!"));
+            alert(getErrorMessage(data, "Loi dang nhap!"));
         } catch (err) {
-            alert("Lỗi kết nối Backend C#! Kiểm tra API https://localhost:7077 đã chạy chưa.");
+            alert("Loi ket noi Backend PHP! Coi lai XAMPP bat chua?");
         }
     });
 
@@ -62,20 +62,20 @@ export function setupAuthListeners() {
         const confirmPassword = document.getElementById("regConfirmPassword").value;
 
         const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
-        if (!usernameRegex.test(username)) return alert("Tên đăng nhập phải từ 3 đến 20 ký tự, viết liền không dấu và không chứa ký tự đặc biệt.");
-        if (password.length < 6) return alert("Mật khẩu phải có ít nhất 6 ký tự.");
-        if (password !== confirmPassword) return alert("Hai mật khẩu không khớp. Nhập lại giúp mình nhé.");
+        if (!usernameRegex.test(username)) return alert("Ten dang nhap phai tu 3 den 20 ky tu, viet lien khong dau va khong chua ky tu dac biet.");
+        if (password.length < 6) return alert("Mat khau phai co it nhat 6 ky tu.");
+        if (password !== confirmPassword) return alert("Hai mat khau khong khop. Nhap lai giup minh nhe.");
 
         try {
             const response = await registerUser({ username, email, password });
             const data = await response.json().catch(() => ({}));
 
             if (response.ok) {
-                alert("Đăng ký thành công qua Backend C#! Quay lại đăng nhập thôi!");
+                alert("Dang ky thanh cong qua he thong PHP! Quay lai dang nhap thoi!");
 
                 if (window.logSystemActivity) {
                     window.logSystemActivity(
-                        "vừa đăng ký tài khoản mới thành công.",
+                        "vua dang ky tai khoan moi thanh cong.",
                         "person_add",
                         "text-emerald-500",
                         "bg-emerald-100"
@@ -87,9 +87,9 @@ export function setupAuthListeners() {
                 return;
             }
 
-            alert("Lỗi: " + getErrorMessage(data, "Đăng ký thất bại!"));
+            alert("Loi: " + getErrorMessage(data, "Bi loi gi do roi!"));
         } catch (err) {
-            alert("Lỗi kết nối Backend C#! Kiểm tra API https://localhost:7077 đã chạy chưa.");
+            alert("Loi ket noi Backend PHP! Coi lai XAMPP bat chua?");
         }
     });
 

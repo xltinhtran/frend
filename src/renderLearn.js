@@ -14,6 +14,82 @@ function getCleanDefinition(definition = "") {
     .trim();
 }
 
+function normalizeSpeechText(text = "") {
+  return String(text)
+    .toLowerCase()
+    .replace(/[’']/g, "")
+    .replace(/[^a-z0-9\s-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getSimpleWordForm(word = "") {
+  return word
+    .replace(/(ies)$/i, "y")
+    .replace(/(ing|ed|es|s)$/i, "");
+}
+
+function getEditDistance(a = "", b = "") {
+  const matrix = Array.from({ length: a.length + 1 }, () =>
+    Array(b.length + 1).fill(0),
+  );
+
+  for (let i = 0; i <= a.length; i++) matrix[i][0] = i;
+  for (let j = 0; j <= b.length; j++) matrix[0][j] = j;
+
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      matrix[i][j] = Math.min(
+        matrix[i - 1][j] + 1,
+        matrix[i][j - 1] + 1,
+        matrix[i - 1][j - 1] + cost,
+      );
+    }
+  }
+
+  return matrix[a.length][b.length];
+}
+
+function getSimilarity(a = "", b = "") {
+  const longest = Math.max(a.length, b.length);
+  if (longest === 0) return 1;
+  return 1 - getEditDistance(a, b) / longest;
+}
+
+function getPronunciationScore(transcript, target) {
+  const spoken = normalizeSpeechText(transcript);
+  const correct = normalizeSpeechText(target);
+  if (!spoken || !correct) return 0;
+
+  const correctSimple = getSimpleWordForm(correct);
+  const candidates = [...spoken.split(" "), spoken]
+    .filter(Boolean)
+    .map(getSimpleWordForm);
+
+  if (candidates.includes(correct) || candidates.includes(correctSimple)) return 1;
+
+  return Math.max(
+    ...candidates.map((candidate) =>
+      Math.max(
+        getSimilarity(candidate, correct),
+        getSimilarity(candidate, correctSimple),
+      )
+    ),
+  );
+}
+
+function isPronunciationMatch(transcript, target) {
+  const correct = normalizeSpeechText(target);
+  const score = getPronunciationScore(transcript, target);
+  const threshold = correct.length <= 4 ? 0.72 : 0.78;
+  return score >= threshold;
+}
+
+function getSpeechRecognition() {
+  return window.SpeechRecognition || window.webkitSpeechRecognition || null;
+}
+
 export function renderLearnMode(session, set, handlers) {
   renderLearnProgress(session);
   renderLearnQuestion(session, set, handlers);
@@ -40,6 +116,7 @@ export function renderLearnQuestion(session, set, handlers) {
   const gradeButtons = document.getElementById("gradeButtons");
   const answerOptions = document.getElementById("answerOptions");
   const textInputArea = document.getElementById("textInputArea");
+  const pronunciationArea = document.getElementById("pronunciationArea");
   const arrangeArea = document.getElementById("arrangeArea");
   const modeSelect = document.getElementById("gameModeSelect");
 
@@ -59,11 +136,15 @@ export function renderLearnQuestion(session, set, handlers) {
   if (gradeButtons) gradeButtons.classList.add("hidden");
   if (answerOptions) answerOptions.classList.add("hidden");
   if (textInputArea) textInputArea.classList.add("hidden");
+  if (pronunciationArea) pronunciationArea.classList.add("hidden");
   if (arrangeArea) arrangeArea.classList.add("hidden");
 
   // 2. Xác định các game có thể chơi
   const exampleText = card.example || card.Example || "";
   let availableModes = ["MULTIPLE_CHOICE", "DICTATION"];
+  if (getSpeechRecognition()) {
+      availableModes.push("PRONUNCIATION");
+  }
   
   if (exampleText && exampleText.trim().length > 5) {
       availableModes.push("FILL_BLANK");
@@ -76,6 +157,8 @@ export function renderLearnQuestion(session, set, handlers) {
 
   if (selectedMode === "AUTO") {
       modeToPlay = availableModes[Math.floor(Math.random() * availableModes.length)];
+  } else if (selectedMode === "PRONUNCIATION") {
+      modeToPlay = "PRONUNCIATION";
   } else {
       modeToPlay = availableModes.includes(selectedMode) ? selectedMode : "MULTIPLE_CHOICE";
   }
@@ -87,7 +170,7 @@ export function renderLearnQuestion(session, set, handlers) {
   const oldButtons = qContainer.querySelectorAll("button");
   oldButtons.forEach(btn => btn.remove());
 
-  const showSpeakButton = modeToPlay === "DICTATION";
+  const showSpeakButton = modeToPlay === "DICTATION" || modeToPlay === "PRONUNCIATION";
   let newSpeakBtn = null;
 
   if (showSpeakButton) {
@@ -142,6 +225,15 @@ export function renderLearnQuestion(session, set, handlers) {
       textInputArea.classList.remove("hidden");
       setupTextInput(card, handlers);
   } 
+  else if (modeToPlay === "PRONUNCIATION") {
+      questionText.innerHTML = `
+        <span class="text-slate-500 text-sm font-bold block mb-3 uppercase tracking-wider">Đọc lại từ này</span>
+        <span class="text-4xl font-extrabold text-slate-900">${escapeHtml(card.term)}</span>
+        <span class="text-sm text-slate-500 mt-3 block">${escapeHtml(card.definition)}</span>
+      `;
+      pronunciationArea?.classList.remove("hidden");
+      setupFastPronunciation(card, handlers);
+  }
   else if (modeToPlay === "FILL_BLANK") {
       const regex = new RegExp(card.term, "gi"); 
       const blankedExample = exampleText.replace(regex, "________");
@@ -166,6 +258,225 @@ export function renderLearnQuestion(session, set, handlers) {
 // ==========================================
 // HỆ THỐNG MINI GAMES MỚI (Gõ chữ & Xếp câu)
 // ==========================================
+function setupPronunciation(card, handlers, playAudio) {
+    const oldBtn = document.getElementById("startPronunciationBtn");
+    const result = document.getElementById("pronunciationResult");
+    if (!oldBtn || !result) return;
+
+    const btn = oldBtn.cloneNode(true);
+    oldBtn.parentNode.replaceChild(btn, oldBtn);
+
+    const Recognition = getSpeechRecognition();
+    result.className = "mt-4 mx-auto max-w-md rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500";
+    result.textContent = "Bấm mic rồi đọc từ tiếng Anh đang hiển thị.";
+    btn.disabled = false;
+    btn.innerHTML = `<span class="material-symbols-outlined">mic</span>Bấm để đọc`;
+
+    if (!Recognition) {
+        btn.disabled = true;
+        result.className = "mt-4 mx-auto max-w-md rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700";
+        result.textContent = "Trình duyệt này chưa hỗ trợ nhận diện giọng nói. Hãy thử Chrome hoặc Edge.";
+        return;
+    }
+
+    btn.addEventListener("click", () => {
+        const recognition = new Recognition();
+        recognition.lang = "en-US";
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 5;
+        let answered = false;
+
+        btn.disabled = true;
+        btn.innerHTML = `<span class="material-symbols-outlined animate-pulse">mic</span>Đang nghe...`;
+        result.className = "mt-4 mx-auto max-w-md rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700";
+        result.textContent = "Đọc rõ từ này bằng tiếng Anh nhé.";
+
+        recognition.onresult = (event) => {
+            answered = true;
+            const alternatives = Array.from(event.results[0] || []);
+            const transcript = alternatives[0]?.transcript || "";
+            const bestScore = Math.max(
+                ...alternatives.map((item) => getPronunciationScore(item.transcript, card.term)),
+            );
+            const isCorrect = alternatives.some((item) => isPronunciationMatch(item.transcript, card.term));
+
+            result.className = `mt-4 mx-auto max-w-md rounded-xl border px-4 py-3 text-sm ${
+                isCorrect
+                    ? "border-green-200 bg-green-50 text-green-700"
+                    : "border-red-200 bg-red-50 text-red-700"
+            }`;
+            result.innerHTML = `
+                <div class="font-bold">${isCorrect ? "Đọc đúng!" : "Chưa khớp"}</div>
+                <div>Web nghe được: <span class="font-semibold">${escapeHtml(transcript || "...")}</span></div>
+                <div>Độ khớp: <span class="font-semibold">${Math.round(bestScore * 100)}%</span></div>
+                <div>Từ đúng: <span class="font-semibold">${escapeHtml(card.term)}</span></div>
+            `;
+
+            handlers.onAnswer?.(isCorrect, result, card.uuid);
+        };
+
+        recognition.onerror = () => {
+            answered = true;
+            btn.disabled = false;
+            btn.innerHTML = `<span class="material-symbols-outlined">mic</span>Thử đọc lại`;
+            result.className = "mt-4 mx-auto max-w-md rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700";
+            result.textContent = "Không nghe được giọng đọc. Kiểm tra quyền micro rồi thử lại.";
+        };
+
+        recognition.onend = () => {
+            if (!answered) {
+                btn.disabled = false;
+                btn.innerHTML = `<span class="material-symbols-outlined">mic</span>Thử đọc lại`;
+                result.className = "mt-4 mx-auto max-w-md rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700";
+                result.textContent = "Web chưa nghe được gì. Bấm mic rồi đọc lại nhé.";
+                return;
+            }
+            if (!btn.disabled) return;
+            btn.innerHTML = `<span class="material-symbols-outlined">mic</span>Đã nghe xong`;
+        };
+
+        try {
+            recognition.start();
+        } catch (error) {
+            answered = true;
+            btn.disabled = false;
+            btn.innerHTML = `<span class="material-symbols-outlined">mic</span>Thử đọc lại`;
+            result.className = "mt-4 mx-auto max-w-md rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700";
+            result.textContent = "Không mở được micro. Kiểm tra quyền micro rồi thử lại.";
+        }
+    });
+}
+
+function setupFastPronunciation(card, handlers) {
+    const oldBtn = document.getElementById("startPronunciationBtn");
+    const result = document.getElementById("pronunciationResult");
+    if (!oldBtn || !result) return;
+
+    const btn = oldBtn.cloneNode(true);
+    oldBtn.parentNode.replaceChild(btn, oldBtn);
+
+    const Recognition = getSpeechRecognition();
+    result.className = "mt-4 mx-auto max-w-md rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500";
+    result.textContent = "Bấm mic rồi đọc ngay từ tiếng Anh đang hiển thị.";
+    btn.disabled = false;
+    btn.innerHTML = `<span class="material-symbols-outlined">mic</span>Bấm để đọc`;
+
+    if (!Recognition) {
+        btn.disabled = true;
+        result.className = "mt-4 mx-auto max-w-md rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700";
+        result.textContent = "Trình duyệt này chưa hỗ trợ nhận diện giọng nói. Hãy thử Chrome hoặc Edge.";
+        return;
+    }
+
+    btn.addEventListener("click", () => {
+        const recognition = new Recognition();
+        recognition.lang = "en-US";
+        recognition.continuous = false;
+        recognition.interimResults = true;
+        recognition.maxAlternatives = 5;
+
+        let answered = false;
+        let lastTranscript = "";
+        let bestScore = 0;
+        let listenTimer = null;
+
+        const resetMicButton = (message) => {
+            btn.disabled = false;
+            btn.innerHTML = `<span class="material-symbols-outlined">mic</span>Thử đọc lại`;
+            result.className = "mt-4 mx-auto max-w-md rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700";
+            result.textContent = message;
+        };
+
+        const stopListening = () => {
+            if (listenTimer) clearTimeout(listenTimer);
+            try {
+                recognition.stop();
+            } catch (error) {}
+        };
+
+        const finishCheck = (isCorrect) => {
+            if (answered) return;
+            answered = true;
+            stopListening();
+
+            result.className = `mt-4 mx-auto max-w-md rounded-xl border px-4 py-3 text-sm ${
+                isCorrect
+                    ? "border-green-200 bg-green-50 text-green-700"
+                    : "border-red-200 bg-red-50 text-red-700"
+            }`;
+            result.innerHTML = `
+                <div class="font-bold">${isCorrect ? "Đọc đúng!" : "Chưa khớp"}</div>
+                <div>Web nghe được: <span class="font-semibold">${escapeHtml(lastTranscript || "...")}</span></div>
+                <div>Độ khớp: <span class="font-semibold">${Math.round(bestScore * 100)}%</span></div>
+                <div>Từ đúng: <span class="font-semibold">${escapeHtml(card.term)}</span></div>
+            `;
+
+            handlers.onAnswer?.(isCorrect, result, card.uuid);
+        };
+
+        btn.disabled = true;
+        btn.innerHTML = `<span class="material-symbols-outlined animate-pulse">mic</span>Đang nghe...`;
+        result.className = "mt-4 mx-auto max-w-md rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700";
+        result.textContent = "Nói ngay bây giờ. Web sẽ chấm trong khoảng 4 giây.";
+
+        recognition.onresult = (event) => {
+            const currentResult = event.results[event.resultIndex] || event.results[0];
+            const alternatives = Array.from(currentResult || []);
+            if (alternatives.length === 0) return;
+
+            lastTranscript = alternatives[0]?.transcript || lastTranscript;
+            bestScore = Math.max(
+                bestScore,
+                ...alternatives.map((item) => getPronunciationScore(item.transcript, card.term)),
+            );
+
+            result.innerHTML = `
+                <div class="font-bold">Đang nghe...</div>
+                <div>Web đang nghe: <span class="font-semibold">${escapeHtml(lastTranscript || "...")}</span></div>
+                <div>Độ khớp hiện tại: <span class="font-semibold">${Math.round(bestScore * 100)}%</span></div>
+            `;
+
+            if (alternatives.some((item) => isPronunciationMatch(item.transcript, card.term))) {
+                finishCheck(true);
+            } else if (currentResult.isFinal) {
+                finishCheck(bestScore >= 0.68);
+            }
+        };
+
+        recognition.onerror = () => {
+            if (answered) return;
+            answered = true;
+            stopListening();
+            resetMicButton("Không nghe được giọng đọc. Bấm lại rồi đọc ngay khi nút đổi sang Đang nghe.");
+        };
+
+        recognition.onend = () => {
+            if (!answered) {
+                if (lastTranscript) finishCheck(bestScore >= 0.68);
+                else resetMicButton("Web chưa nghe được gì. Bấm mic rồi nói to/rõ hơn một chút nhé.");
+                return;
+            }
+            btn.innerHTML = `<span class="material-symbols-outlined">mic</span>Đã nghe xong`;
+        };
+
+        try {
+            recognition.start();
+            listenTimer = setTimeout(() => {
+                if (answered) return;
+                if (lastTranscript) finishCheck(bestScore >= 0.68);
+                else {
+                    answered = true;
+                    stopListening();
+                    resetMicButton("Hết thời gian nghe. Bấm lại rồi đọc ngay trong 4 giây đầu nhé.");
+                }
+            }, 4000);
+        } catch (error) {
+            answered = true;
+            resetMicButton("Không mở được micro. Kiểm tra quyền micro rồi thử lại.");
+        }
+    });
+}
+
 function setupTextInput(card, handlers) {
     const input = document.getElementById("learnTextInput");
     const oldBtn = document.getElementById("submitTextBtn");

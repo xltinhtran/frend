@@ -10,6 +10,7 @@
           <option value="AUTO">🎲 Random (Tự động trộn)</option>
           <option value="MULTIPLE_CHOICE">📝 Trắc nghiệm</option>
           <option value="DICTATION">🎧 Nghe chép chính tả</option>
+          <option value="PRONUNCIATION">🎙️ Đọc lại từ</option>
           <option value="FILL_BLANK">✍️ Điền từ vào chỗ trống</option>
           <option value="ARRANGE">🧩 Kéo thả sắp xếp câu</option>
       </select>
@@ -45,6 +46,16 @@
       <div id="textInputArea" class="hidden mt-6 text-center animate-fade-in">
         <input type="text" id="learnTextInput" class="w-full max-w-md px-4 py-3 text-lg border-2 border-slate-300 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none text-center font-semibold text-slate-700 shadow-inner" placeholder="Gõ câu trả lời vào đây..." autocomplete="off">
         <button id="submitTextBtn" class="mt-4 bg-indigo-600 text-white font-bold py-3 px-8 rounded-xl hover:bg-indigo-700 transition-colors w-full max-w-md shadow-md">Kiểm tra</button>
+      </div>
+
+      <div id="pronunciationArea" class="hidden mt-6 text-center animate-fade-in">
+        <button id="startPronunciationBtn" class="inline-flex items-center justify-center gap-2 bg-rose-500 text-white font-bold py-3 px-8 rounded-xl hover:bg-rose-600 transition-colors w-full max-w-md shadow-md">
+          <span class="material-symbols-outlined">mic</span>
+          Bấm để đọc
+        </button>
+        <div id="pronunciationResult" class="mt-4 mx-auto max-w-md rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+          Web sẽ nghe giọng đọc của bạn rồi kiểm tra với từ đúng.
+        </div>
       </div>
 
       <div id="arrangeArea" class="hidden mt-6 animate-fade-in">
